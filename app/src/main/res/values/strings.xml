@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Test Sudoku Application</string>
+    <string name="newGrid">New Sudoku Grid</string>
+    <string name="scanGrid">Scan Puzzle</string>
+    <string name="quit">Quit</string>
+</resources>
