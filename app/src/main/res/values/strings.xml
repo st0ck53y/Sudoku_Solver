@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Test Sudoku Application</string>
+    <string name="app_name">Sudoku Solver 3000</string>
     <string name="newGrid">New Sudoku Grid</string>
     <string name="scanGrid">Scan Puzzle</string>
     <string name="quit">Quit</string>

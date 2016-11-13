@@ -1,5 +1,7 @@
 package com.st0ck53y.testsudokuapplication.classes;
 
+import android.util.Log;
+
 public class Solver {
 
     private Grid grid;
@@ -9,8 +11,9 @@ public class Solver {
     }
 
     public void solvePuzzle() {
-        boolean unsolved;
-        do {
+        boolean unsolved = false;
+        for (int safeCount = 0; safeCount < 10000; safeCount++) {
+            Log.i("iterSolve",""+safeCount);
             unsolved = false;
             for (int i = 0; i < 9; i++) {
                 for (int j = 0; j < 9; j++) {
@@ -65,10 +68,13 @@ public class Solver {
                     }
                 }
             }
-        } while (unsolved);
+            if (!unsolved) break;
+        }
+        grid.solved = !unsolved;
     }
 
     public int[][] getSolution(int nullit) {
+        if (!grid.solved) return new int[][]{{0}};
         int[][] solution = new int[9][9];
         for (int x = 0; x < 9; x++) {
             for (int y = 0; y < 9; y++) {

@@ -53,6 +53,9 @@ public class GridArea {
     }
 
     public void setValue(int v) {
-        value = (v | (1 << 15));
+        if (v == 0)
+            value = 8185;
+        else
+            value = (v | (1 << 15));
     }
 }

@@ -9,21 +9,25 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RelativeLayout;
 
+import com.st0ck53y.testsudokuapplication.activity.NewGrid;
+
 public class GridTextWatcher implements TextWatcher {
     private EditText e;
     private Button solve;
     private Context context;
+    private NewGrid ng;
     private boolean ch;
     private String cs;
-    public GridTextWatcher(EditText e, Button s, Context context) {
+    public GridTextWatcher(EditText e, Button s, Context context, NewGrid ng) {
         this.e = e;
         this.solve = s;
         this.context = context;
+        this.ng = ng;
     }
 
     @Override
     public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-        if (1==2 /* Check user input vs Solution input */) //TODO
+        if (ng.ignoreTextChange)
             return;
         if (s.length() != 0) {
             cs = s.toString();
@@ -43,6 +47,7 @@ public class GridTextWatcher implements TextWatcher {
 
     @Override
     public void afterTextChanged(Editable s) {
+        if (s.length() == 0) return;
         if (ch) {
             ch = false;
             String text;
@@ -53,10 +58,11 @@ public class GridTextWatcher implements TextWatcher {
             }
             int i = Integer.valueOf(text);
             if (i == 0) text = "";
-            Log.i("tChange", text);
             e.removeTextChangedListener(this);
             e.setText(text);
             e.addTextChangedListener(this);
         }
+        NewGrid.solveButt = true;
+        ng.solveText("Solve!");
     }
 }

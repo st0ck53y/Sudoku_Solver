@@ -1,23 +1,43 @@
 package com.st0ck53y.testsudokuapplication.activity;
 
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RelativeLayout;
 
 import com.st0ck53y.testsudokuapplication.R;
 import com.st0ck53y.testsudokuapplication.classes.GridTextWatcher;
+import com.st0ck53y.testsudokuapplication.data.SolverTask;
 
 public class NewGrid extends AppCompatActivity {
+
+    private Button solve;
+    public static boolean solveButt = true;
+    public boolean processing = false;
+    public boolean ignoreTextChange = false;
+    public EditText[][] grid;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_new_grid);
-        Button solve = (Button) findViewById(R.id.butSolve);
-        EditText[][] grid = new EditText[9][9];
+        solve = (Button) findViewById(R.id.butSolve);
+        solve.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (solveButt) {
+                    solveClick();
+                } else {
+                    clearClick();
+                    solveText("Solve!");
+                }
+            }
+        });
+        grid = new EditText[9][9];
         grid[0][0] = (EditText) findViewById(R.id._11);
         ((RelativeLayout) (grid[0][0].getParent()).getParent()).requestFocus();
         grid[0][1] = (EditText) findViewById(R.id._12);
@@ -102,9 +122,58 @@ public class NewGrid extends AppCompatActivity {
         grid[8][8] = (EditText) findViewById(R.id._99);
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
-                Log.i("tst",""+i+","+j);
-                grid[i][j].addTextChangedListener(new GridTextWatcher(grid[i][j], solve, this));
+                grid[i][j].addTextChangedListener(new GridTextWatcher(grid[i][j], solve, this, NewGrid.this));
             }
         }
+    }
+
+    public void solveText(String t) {
+        solve.setText(t);
+    }
+
+    public void solveClick() {
+        if (!processing) {
+            int[][] gridVals = getGridValues();
+            (new SolverTask(gridVals, NewGrid.this)).execute();
+            for(int i = 0; i < 9; i++) {
+                for(int j= 0; j < 9; j++) {
+                    if(gridVals[i][j]!=0) {
+                        grid[i][j].setTypeface(null, Typeface.BOLD);
+                    }
+                }
+            }
+        }
+    }
+
+    public void clearClick() {
+        for(int i = 0; i < 9; i++) {
+            for(int j= 0; j < 9; j++) {
+                grid[i][j].setText("");
+                grid[i][j].setTypeface(null, Typeface.NORMAL);
+            }
+        }
+        solveButt = true;
+    }
+
+    private int[][] getGridValues() {
+        int[][] vals = new int[9][9];
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                String gridText = grid[i][j].getText().toString();
+                if (gridText.equals("")) gridText = "0";
+                vals[i][j] = Integer.valueOf(gridText);
+            }
+        }
+        return vals;
+    }
+
+    public void setGridValues(int[][] vals) {
+        ignoreTextChange = true;
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                grid[i][j].setText(String.valueOf(vals[i][j]));
+            }
+        }
+        ignoreTextChange = false;
     }
 }
