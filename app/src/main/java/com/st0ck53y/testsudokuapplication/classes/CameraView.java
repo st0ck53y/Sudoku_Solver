@@ -96,8 +96,8 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         }
     }
 
-    private byte[] yFromYUV() {
-        byte[] dat = new byte[PreviewSizeWidth * PreviewSizeHeight];
+    private int[] yFromYUV() {
+        int[] dat = new int[PreviewSizeWidth * PreviewSizeHeight];
         for (int i = 0; i < dat.length; i++) {
             dat[i] = framedat[i];
         }
@@ -110,135 +110,17 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         }
     }
 
-//    private void sobelEdgeDetector(int[] pxl) {
-//        int sobFin = 0;
-//        int[] fins = new int[pxl.length];
-//        int sobHor = 0;
-//        int sobVer = 0;
-//        int w, h;
-//        w = PreviewSizeWidth;
-//        h = PreviewSizeHeight;
-//        for (int y = 1; y < h - 1; y++) {
-//            for (int x = 1; x < w - 1; x++) {
-//                sobHor= pxl[((y - 1) * w) + (x - 1)]  * -1  +
-//                        pxl[((y - 1) * w) + (x    )]  *  0  +
-//                        pxl[((y - 1) * w) + (x + 1)]  *  1  +
-//                        pxl[((y    ) * w) + (x - 1)]  * -2  +
-//                        pxl[((y    ) * w) + (x    )]  *  0  +
-//                        pxl[((y    ) * w) + (x + 1)]  *  2  +
-//                        pxl[((y + 1) * w) + (x - 1)]  * -1  +
-//                        pxl[((y + 1) * w) + (x    )]  *  0  +
-//                        pxl[((y + 1) * w) + (x + 1)]  *  1;
-//
-//                sobVer= pxl[((y - 1) * w) + (x - 1)]  * -1  +
-//                        pxl[((y - 1) * w) + (x    )]  * -2  +
-//                        pxl[((y - 1) * w) + (x + 1)]  * -1  +
-//                        pxl[((y    ) * w) + (x - 1)]  *  0  +
-//                        pxl[((y    ) * w) + (x    )]  *  0  +
-//                        pxl[((y    ) * w) + (x + 1)]  *  0  +
-//                        pxl[((y + 1) * w) + (x - 1)]  *  1  +
-//                        pxl[((y + 1) * w) + (x    )]  *  2  +
-//                        pxl[((y + 1) * w) + (x + 1)]  *  1;
-//
-//                sobFin = (int) Math.ceil(Math.sqrt((sobHor * sobHor) + (sobVer * sobVer)));
-//                if (sobFin < 30) sobFin = 0;
-//                else if (sobFin >= 30) sobFin = 0xff;
-//                pixels[(y*w) + x] = 0xff000000 | ((sobFin & 0xff) << 16) | ((sobFin & 0xff) << 8) | (sobFin & 0xff);
-//            }
-//        }
-//        //takes ~ 2 seconds on average
-//    }
-
-    private void sobelEdgeDetector2(int[] pxl) {
-        int sobFin = 0;
-        int[] fins = new int[pxl.length];
-        int sobHor = 0;
-        int sobVer = 0;
+    private void sobelEdgeDetectorPoor(int[] pxl) {
         int w, h;
         w = PreviewSizeWidth;
         h = PreviewSizeHeight;
-        for (int y = 1; y < h - 1; y++) {
-            for (int x = 1; x < w - 1; x++) {
-                sobHor= pxl[((y - 1) * w) + (x - 1)]  * -1  +
-                        pxl[((y - 1) * w) + (x + 1)]        -
-                        pxl[((y    ) * w) + (x - 1)]  *  2  +
-                        pxl[((y    ) * w) + (x + 1)]  *  2  -
-                        pxl[((y + 1) * w) + (x - 1)]  +
-                        pxl[((y + 1) * w) + (x + 1)];
-
-                sobVer= pxl[((y - 1) * w) + (x - 1)]  * -1  -
-                        pxl[((y - 1) * w) + (x    )]  *  2  -
-                        pxl[((y - 1) * w) + (x + 1)]        +
-                        pxl[((y + 1) * w) + (x - 1)]        +
-                        pxl[((y + 1) * w) + (x    )]  *  2  +
-                        pxl[((y + 1) * w) + (x + 1)];
-
-                sobFin = (int) Math.ceil(Math.sqrt((sobHor * sobHor) + (sobVer * sobVer)));
-                if (sobFin < 30) sobFin = 0;
-                else if (sobFin >= 30) sobFin = 0xff;
-                pixels[(y*w) + x] = 0xff000000 | ((sobFin & 0xff) << 16) | ((sobFin & 0xff) << 8) | (sobFin & 0xff);
-            }
-        }
-        //takes ~ 1.9 seconds on average
-    }
-
-    private void sobelEdgeDetector(byte[] pxl) {
-        int sobFin,sobHor,sobVer;
-        int w, h;
-        w = PreviewSizeWidth;
-        h = PreviewSizeHeight;
-        for (int y = 1; y < h - 1; y++) {
-            int yOffs = y * w;
-            for (int x = 1; x < w - 1; x++) {
-                sobHor=(-pxl[(yOffs - w) + (x - 1)])      +
-                         pxl[(yOffs - w) + (x + 1)]       -
-                        (pxl[(yOffs    ) + (x - 1)] << 1) +
-                        (pxl[(yOffs    ) + (x + 1)] << 1) -
-                         pxl[(yOffs + w) + (x - 1)]       +
-                         pxl[(yOffs + w) + (x + 1)];
-
-                sobVer=(-pxl[(yOffs - w) + (x - 1)])      -
-                        (pxl[(yOffs - w) + (x    )] << 1) -
-                         pxl[(yOffs - w) + (x + 1)]       +
-                         pxl[(yOffs + w) + (x - 1)]       +
-                        (pxl[(yOffs + w) + (x    )] << 1) +
-                         pxl[(yOffs + w) + (x + 1)];
-
-                sobFin = (int) Math.ceil(Math.sqrt((sobHor * sobHor) + (sobVer * sobVer)));
-                if (sobFin < 40) sobFin = 0;
-                else if (sobFin >= 40) sobFin = 0xff;
-                pixels[(y*w) + x] = 0xff000000 | ((sobFin & 0xff) << 16) | ((sobFin & 0xff) << 8) | (sobFin & 0xff);
-            }
-        }
-        //takes ~ 1.7 seconds on average
-    }
-
-    private void sobelEdgeDetectorPoor(byte[] pxl) {
-        int sobFin,sobHor,sobVer;
-        int w, h;
-        w = PreviewSizeWidth;
-        h = PreviewSizeHeight;
-        for (int y = 1; y < h - 1; y++) {
-            int yOffs = y * w;
-            for (int x = 1; x < w - 1; x++) {
-                sobHor=(-pxl[(yOffs - w) + (x - 1)])      +
-                        pxl[(yOffs - w) + (x + 1)]       -
-                        (pxl[(yOffs    ) + (x - 1)] << 1) +
-                        (pxl[(yOffs    ) + (x + 1)] << 1) -
-                        pxl[(yOffs + w) + (x - 1)]       +
-                        pxl[(yOffs + w) + (x + 1)];
-
-                sobVer=(-pxl[(yOffs - w) + (x - 1)])      -
-                        (pxl[(yOffs - w) + (x    )] << 1) -
-                        pxl[(yOffs - w) + (x + 1)]       +
-                        pxl[(yOffs + w) + (x - 1)]       +
-                        (pxl[(yOffs + w) + (x    )] << 1) +
-                        pxl[(yOffs + w) + (x + 1)];
-
-                sobFin = (int) Math.ceil(((sobHor + sobVer) >> 1)*1.41);
-                if (sobFin < 40) sobFin = 0;
-                else if (sobFin >= 40) sobFin = 0xff;
-                pixels[(y*w) + x] = 0xff000000 | ((sobFin & 0xff) << 16) | ((sobFin & 0xff) << 8) | (sobFin & 0xff);
+        int[] diffed = ImageProcessor.sobelDifferential(pxl,w,h);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int val = diffed[y*w+x];
+                if (val < 30) val = 0;
+                else if (val >= 30) val = 0xff;
+                pixels[(y*w) + x] = 0xff000000 | ((val & 0xff) << 16) | ((val & 0xff) << 8) | (val & 0xff);
             }
         }
         //takes ~ 1.5 seconds on average
@@ -255,9 +137,10 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         public void run() {
             processing = true;
 //            YUV_NV21_TO_RGB(pixels,framedat,PreviewSizeWidth,PreviewSizeHeight);
-            byte[] pixLum = yFromYUV();
+            int[] pixLum = yFromYUV();
 //            lumToRGB(pixLum);
             long ts = System.nanoTime();
+            pixLum = ImageProcessor.gaussianBlur(pixLum,PreviewSizeWidth,PreviewSizeHeight);
             sobelEdgeDetectorPoor(pixLum);
             long te = System.nanoTime();
             thisTime = (te-ts)/1000000;
