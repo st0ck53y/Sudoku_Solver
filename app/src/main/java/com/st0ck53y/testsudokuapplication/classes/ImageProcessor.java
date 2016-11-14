@@ -77,6 +77,8 @@ public class ImageProcessor {
                             (imgIn[yPos + x] << 1) +
                             (imgIn[yPos + x + 1]);
 
+                hor = (hor<0)?(-hor):hor;
+                ver = (ver<0)?(-ver):ver;
                 imgOut[y*width+x] = (int) Math.ceil(((hor + ver) >> 1)*1.41);
             }
         }
