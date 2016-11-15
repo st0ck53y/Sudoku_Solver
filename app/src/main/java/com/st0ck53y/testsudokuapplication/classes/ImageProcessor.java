@@ -4,7 +4,7 @@ public class ImageProcessor {
 
     //TODO handle borders
     // ~448 divisions+multiplications for a 10x10 image
-    public static int[] gaussianBlur(int[] imgIn, int w, int h) {
+    public static int[] gaussianBlur3(int[] imgIn, int w, int h) {
         int arrSize = w*h;
         int[] imgOut = new int[arrSize];
         for (int p = 0; p < w; p++) {
@@ -51,7 +51,7 @@ public class ImageProcessor {
      * @param height height of image
      * @return single channel image blurred
      */
-    public static int[] gaussianBlurNS(int[] imgIn, int width, int height) {
+    public static int[] gaussianBlurNS3(int[] imgIn, int width, int height) {
         int arrSize = width*height;
         int[] imgOut = new int[arrSize];
         for (int p = 0; p < width; p++) {
@@ -66,19 +66,24 @@ public class ImageProcessor {
             int yNeg = yOffs - width;
             int yPos = yOffs + width;
             for (int x = 1; x < width - 1; x++) {
-
-                imgOut[y*width+x] = (imgIn[yNeg + x - 1] / 16) +
-                        (imgIn[yNeg + x] / 8) +
-                        (imgIn[yNeg + x + 1] / 16) +
-                        (imgIn[yOffs + x - 1] / 8) +
-                        (imgIn[yOffs + x] / 4) +
-                        (imgIn[yOffs + x + 1] / 8) +
-                        (imgIn[yPos + x - 1] / 16) +
-                        (imgIn[yPos + x] / 8) +
-                        (imgIn[yPos + x + 1] / 16);
+                imgOut[y*width+x] = blurPixel(imgIn, x, yOffs, yNeg, yPos);
             }
         }
         return imgOut;
+    }
+
+    static int blurPixel(int[] imgIn, int x, int row, int prevRow, int nextRow) {
+        double a = (imgIn[prevRow + x - 1]);
+        double b = (imgIn[prevRow + x] * 2);
+        double c = (imgIn[prevRow + x + 1] );
+        double d = (imgIn[row + x - 1]  * 2);
+        double e = (imgIn[row + x] * 4);
+        double f = (imgIn[row + x + 1] * 2);
+        double g = (imgIn[nextRow + x - 1] );
+        double h = (imgIn[nextRow + x] * 2);
+        double i = (imgIn[nextRow + x + 1]);
+//        System.out.println(d);
+        return (int)(a + b + c + d + e + f + g + h + i)/16;
     }
 
     /**

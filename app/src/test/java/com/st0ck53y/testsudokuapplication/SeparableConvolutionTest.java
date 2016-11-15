@@ -19,13 +19,13 @@ public class SeparableConvolutionTest {
         int[] img2 = {230, 15, 131, 120, 134, 3, 74, 150, 22, 76, 160, 140, 61, 111, 26, 192, 179, 96, 24, 59, 205, 56, 113, 222, 40, 41, 38, 162, 195, 240, 46, 122, 212, 77, 208, 209, 124, 5, 223, 84, 202, 187, 158, 98, 201, 149, 248, 173, 215, 7, 225, 11, 167, 238, 42, 94, 169, 156, 57, 142, 117, 108, 249, 54, 170, 193, 68, 43, 82, 219, 4, 28, 102, 110, 69, 180, 25, 198, 1, 12, 6, 176, 30, 132, 229, 83, 49, 236, 63, 58, 196, 81, 233, 147, 203, 163, 235, 86, 107, 65};
         int[] img3 = {223, 184, 171, 237, 89, 96, 172, 151, 63, 190, 178, 47, 161, 134, 73, 50, 189, 13, 163, 170, 132, 217, 147, 243, 252, 231, 40, 236, 45, 164, 113, 25, 90, 188, 246, 52, 121, 49, 59, 117, 24, 22, 8, 101, 84, 230, 33, 155, 20, 218, 145, 109, 179, 51, 54, 115, 242, 127, 6, 98, 94, 202, 212, 71, 191, 1, 159, 232, 187, 2, 65, 201, 144, 216, 83, 235, 174, 37, 156, 91, 104, 228, 244, 100, 140, 128, 75, 76, 58, 226, 55, 106, 29, 214, 107, 93, 220, 118, 211, 209};
 
-        int[] img1NonSep = ImageProcessor.gaussianBlurNS(img1, 10, 10);
-        int[] img2NonSep = ImageProcessor.gaussianBlurNS(img2, 10, 10);
-        int[] img3NonSep = ImageProcessor.gaussianBlurNS(img3, 10, 10);
+        int[] img1NonSep = ImageProcessor.gaussianBlurNS3(img1, 10, 10);
+        int[] img2NonSep = ImageProcessor.gaussianBlurNS3(img2, 10, 10);
+        int[] img3NonSep = ImageProcessor.gaussianBlurNS3(img3, 10, 10);
 
-        int[] img1Sep = ImageProcessor.gaussianBlur(img1, 10, 10);
-        int[] img2Sep = ImageProcessor.gaussianBlur(img2, 10, 10);
-        int[] img3Sep = ImageProcessor.gaussianBlur(img3, 10, 10);
+        int[] img1Sep = ImageProcessor.gaussianBlur3(img1, 10, 10);
+        int[] img2Sep = ImageProcessor.gaussianBlur3(img2, 10, 10);
+        int[] img3Sep = ImageProcessor.gaussianBlur3(img3, 10, 10);
 
         int[] d = new int[3];
         int[] p = new int[3];
