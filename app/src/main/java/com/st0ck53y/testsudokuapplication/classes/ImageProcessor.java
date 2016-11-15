@@ -2,6 +2,47 @@ package com.st0ck53y.testsudokuapplication.classes;
 
 public class ImageProcessor {
 
+    //TODO handle borders
+    // ~448 divisions+multiplications for a 10x10 image
+    public static int[] gaussianBlur(int[] imgIn, int w, int h) {
+        int arrSize = w*h;
+        int[] imgOut = new int[arrSize];
+        for (int p = 0; p < w; p++) {
+            imgOut[p] = imgIn[p];
+            imgOut[(arrSize - p) - 1] = imgIn[(arrSize - p) - 1];
+        }
+
+        //blur horizontal
+        int[] imgHor = new int[arrSize];
+        for (int y = 0; y < h; y++) { //can start at 0 because its doesnt go above current position
+            //moves the sides (untouched by blur) into final image
+            int yOffs = y * w;
+            imgOut[yOffs] = imgIn[yOffs];
+            imgOut[yOffs+(w-1)]=imgIn[yOffs+(w-1)];
+
+            for (int x = 1; x < w-1; x++) {
+                imgHor[yOffs+x] = (imgIn[yOffs + (x-1)] / 4) +
+                        (imgIn[yOffs + x] / 2) +
+                        (imgIn[yOffs + (x+1)] / 4);
+            }
+        }
+
+        //blur vertical
+        for (int y = 1; y < (h-1); y++) {
+            int yOffs = y * w;
+            int yNeg = yOffs - w;
+            int yPos = yOffs + w;
+            for (int x = 1; x < (w-1); x++) {
+                imgOut[yOffs+x] = (imgHor[yNeg+x] / 4) +
+                        (imgHor[yOffs+x] / 2) +
+                        (imgHor[yPos+x] / 4);
+            }
+        }
+
+        return imgOut;
+    }
+
+    // ~ 737 divisions+multiplications for a 10x10 image ... eg almost half the loops, but twice the operations
     /**
      * Blurs a single channel image using gaussian method with kernel size of 3
      *
@@ -10,7 +51,7 @@ public class ImageProcessor {
      * @param height height of image
      * @return single channel image blurred
      */
-    public static int[] gaussianBlur(int[] imgIn, int width, int height) {
+    public static int[] gaussianBlurNS(int[] imgIn, int width, int height) {
         int arrSize = width*height;
         int[] imgOut = new int[arrSize];
         for (int p = 0; p < width; p++) {
@@ -19,22 +60,22 @@ public class ImageProcessor {
         }
 
         for (int y = 1; y < height - 1; y++) {
-            imgOut[(y*width)] = imgIn[(y*width)];
-            imgOut[(y*width)+(width-1)]=imgIn[(y*width)+(width-1)];
             int yOffs = y * width;
+            imgOut[yOffs] = imgIn[yOffs];
+            imgOut[yOffs+(width-1)]=imgIn[yOffs+(width-1)];
             int yNeg = yOffs - width;
             int yPos = yOffs + width;
             for (int x = 1; x < width - 1; x++) {
 
-                imgOut[y*width+x] = (imgIn[yNeg + x - 1] >> 4) +
-                        (imgIn[yNeg + x] >> 3) +
-                        (imgIn[yNeg + x + 1] >> 4) +
-                        (imgIn[yOffs + x - 1] >> 3) +
-                        (imgIn[yOffs + x] >> 2) +
-                        (imgIn[yOffs + x + 1] >> 3) +
-                        (imgIn[yPos + x - 1] >> 4) +
-                        (imgIn[yPos + x] >> 3) +
-                        (imgIn[yPos + x + 1] >> 4);
+                imgOut[y*width+x] = (imgIn[yNeg + x - 1] / 16) +
+                        (imgIn[yNeg + x] / 8) +
+                        (imgIn[yNeg + x + 1] / 16) +
+                        (imgIn[yOffs + x - 1] / 8) +
+                        (imgIn[yOffs + x] / 4) +
+                        (imgIn[yOffs + x + 1] / 8) +
+                        (imgIn[yPos + x - 1] / 16) +
+                        (imgIn[yPos + x] / 8) +
+                        (imgIn[yPos + x + 1] / 16);
             }
         }
         return imgOut;
