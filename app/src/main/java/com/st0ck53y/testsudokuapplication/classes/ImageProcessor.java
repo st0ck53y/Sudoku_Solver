@@ -49,9 +49,10 @@ public class ImageProcessor {
      * @param imgIn array of pixel data for a single channel
      * @param width width of image
      * @param height height of image
+     * @param radius
      * @return single channel image blurred
      */
-    public static int[] gaussianBlurNS3(int[] imgIn, int width, int height) {
+    public static int[] gaussianBlurNS(int[] imgIn, int width, int height, int radius) {
         int arrSize = width*height;
         int[] imgOut = new int[arrSize];
         for (int p = 0; p < width; p++) {
@@ -66,13 +67,23 @@ public class ImageProcessor {
             int yNeg = yOffs - width;
             int yPos = yOffs + width;
             for (int x = 1; x < width - 1; x++) {
-                imgOut[y*width+x] = blurPixel(imgIn, x, yOffs, yNeg, yPos);
+                switch(radius) {
+                    case 3:
+                        imgOut[yOffs+x] = blurPixel3(imgIn, x, yOffs, yNeg, yPos);
+                        break;
+                    case 5:
+                        if (y < 2 || y >= height-2 || x < 2 || x >= width-2) {
+                            imgOut[yOffs+x] = imgIn[yOffs+x];
+                        } else {
+                            imgOut[yOffs+x] = blurPixel5(imgIn,x,yOffs,width);
+                        }
+                }
             }
         }
         return imgOut;
     }
 
-    static int blurPixel(int[] imgIn, int x, int row, int prevRow, int nextRow) {
+    static int blurPixel3(int[] imgIn, int x, int row, int prevRow, int nextRow) {
         double a = (imgIn[prevRow + x - 1]);
         double b = (imgIn[prevRow + x] * 2);
         double c = (imgIn[prevRow + x + 1] );
@@ -84,6 +95,41 @@ public class ImageProcessor {
         double i = (imgIn[nextRow + x + 1]);
 //        System.out.println(d);
         return (int)(a + b + c + d + e + f + g + h + i)/16;
+    }
+
+    static int blurPixel5(int[] imgIn, int x, int yOffs, int w) {
+        double[] pix = new double[25];
+
+        pix[ 0] = (imgIn[(yOffs - (2 * w) + (x - 2))] *  1);
+        pix[ 1] = (imgIn[(yOffs - (2 * w) + (x - 1))] *  4);
+        pix[ 2] = (imgIn[(yOffs - (2 * w) + (x    ))] *  6);
+        pix[ 3] = (imgIn[(yOffs - (2 * w) + (x + 1))] *  4);
+        pix[ 4] = (imgIn[(yOffs - (2 * w) + (x + 2))] *  1);
+        pix[ 5] = (imgIn[(yOffs - (    w) + (x - 2))] *  4);
+        pix[ 6] = (imgIn[(yOffs - (    w) + (x - 1))] * 16);
+        pix[ 7] = (imgIn[(yOffs - (    w) + (x    ))] * 24);
+        pix[ 8] = (imgIn[(yOffs - (    w) + (x + 1))] * 16);
+        pix[ 9] = (imgIn[(yOffs - (    w) + (x + 2))] *  4);
+        pix[10] = (imgIn[(yOffs           + (x - 2))] *  6);
+        pix[11] = (imgIn[(yOffs           + (x - 1))] * 24);
+        pix[12] = (imgIn[(yOffs           + (x    ))] * 36);
+        pix[13] = (imgIn[(yOffs           + (x + 1))] * 24);
+        pix[14] = (imgIn[(yOffs           + (x + 2))] *  6);
+        pix[15] = (imgIn[(yOffs + (    w) + (x - 2))] *  4);
+        pix[16] = (imgIn[(yOffs + (    w) + (x - 1))] * 16);
+        pix[17] = (imgIn[(yOffs + (    w) + (x    ))] * 24);
+        pix[18] = (imgIn[(yOffs + (    w) + (x + 1))] * 16);
+        pix[19] = (imgIn[(yOffs + (    w) + (x + 2))] *  4);
+        pix[20] = (imgIn[(yOffs + (2 * w) + (x - 2))] *  1);
+        pix[21] = (imgIn[(yOffs + (2 * w) + (x - 1))] *  4);
+        pix[22] = (imgIn[(yOffs + (2 * w) + (x    ))] *  6);
+        pix[23] = (imgIn[(yOffs + (2 * w) + (x + 1))] *  4);
+        pix[24] = (imgIn[(yOffs + (2 * w) + (x + 2))] *  1);
+        double sum = 0;
+        for (int i = 0; i < 25; i++) {
+            sum += pix[i];
+        }
+        return (int)(sum/256);
     }
 
     /**

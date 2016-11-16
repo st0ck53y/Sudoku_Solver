@@ -2,7 +2,6 @@ package com.st0ck53y.testsudokuapplication.classes;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.hardware.Camera;
@@ -53,8 +52,13 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         pixels = new int[PreviewSizeWidth * PreviewSizeHeight];
     }
 
+    int frame = 0;
     @Override
     public void onPreviewFrame(byte[] arg0, Camera cam) {
+        if (frame < 5) {
+            frame++;
+            return;
+        }
         if (imageFormat == ImageFormat.NV21) {
             if (!processing) {
                 framedat = arg0;
@@ -114,12 +118,13 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         int w, h;
         w = PreviewSizeWidth;
         h = PreviewSizeHeight;
-        int[] diffed = ImageProcessor.sobelDifferential(pxl,w,h);
+        int[] diffed = pxl;
+//        int[] diffed = ImageProcessor.sobelDifferential(pxl,w,h);
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 int val = diffed[y*w+x];
-                if (val < 30) val = 0;
-                else if (val >= 30) val = 0xff;
+//                if (val < 30) val = 0;
+//                else if (val >= 30) val = 0xff;
                 pixels[(y*w) + x] = 0xff000000 | ((val & 0xff) << 16) | ((val & 0xff) << 8) | (val & 0xff);
             }
         }
@@ -138,9 +143,9 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             processing = true;
 //            YUV_NV21_TO_RGB(pixels,framedat,PreviewSizeWidth,PreviewSizeHeight);
             int[] pixLum = yFromYUV();
-//            lumToRGB(pixLum);
+            lumToRGB(pixLum);
             long ts = System.nanoTime();
-            pixLum = ImageProcessor.gaussianBlurNS3(pixLum,PreviewSizeWidth,PreviewSizeHeight);
+            pixLum = ImageProcessor.gaussianBlurNS(pixLum,PreviewSizeWidth,PreviewSizeHeight, 5);
             sobelEdgeDetectorPoor(pixLum);
             long te = System.nanoTime();
             thisTime = (te-ts)/1000000;
