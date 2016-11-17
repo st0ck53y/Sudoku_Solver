@@ -145,7 +145,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             int[] pixLum = yFromYUV();
             lumToRGB(pixLum);
             long ts = System.nanoTime();
-            pixLum = ImageProcessor.gaussianBlurNS(pixLum,PreviewSizeWidth,PreviewSizeHeight, 5);
+            pixLum = ImageProcessor.gaussianBlurNS(pixLum,PreviewSizeWidth,PreviewSizeHeight, 7);
             sobelEdgeDetectorPoor(pixLum);
             long te = System.nanoTime();
             thisTime = (te-ts)/1000000;
