@@ -97,39 +97,44 @@ public class ImageProcessor {
         return (int)(a + b + c + d + e + f + g + h + i)/16;
     }
 
+    //top right corner of grid as Gaussian is symmetric + divisor
+    static double[] gausR5SU = {1,4,6,4,16,24,6,24,36,256};
+    static double[] gausR5S0_75 = {0.000499,0.005137,0.011068,0.005137,0.052872,0.113921,0.011068,0.113921,0.245461,1};
+    static double[] gausR5S2_50 = {0.028672,0.036333,0.039317,0.036333,0.046042,0.049824,0.039317,0.049824,0.053916,1};
+
     static int blurPixel5(int[] imgIn, int x, int yOffs, int w) {
         double[] pix = new double[25];
-
-        pix[ 0] = (imgIn[(yOffs - (2 * w) + (x - 2))] *  1);
-        pix[ 1] = (imgIn[(yOffs - (2 * w) + (x - 1))] *  4);
-        pix[ 2] = (imgIn[(yOffs - (2 * w) + (x    ))] *  6);
-        pix[ 3] = (imgIn[(yOffs - (2 * w) + (x + 1))] *  4);
-        pix[ 4] = (imgIn[(yOffs - (2 * w) + (x + 2))] *  1);
-        pix[ 5] = (imgIn[(yOffs - (    w) + (x - 2))] *  4);
-        pix[ 6] = (imgIn[(yOffs - (    w) + (x - 1))] * 16);
-        pix[ 7] = (imgIn[(yOffs - (    w) + (x    ))] * 24);
-        pix[ 8] = (imgIn[(yOffs - (    w) + (x + 1))] * 16);
-        pix[ 9] = (imgIn[(yOffs - (    w) + (x + 2))] *  4);
-        pix[10] = (imgIn[(yOffs           + (x - 2))] *  6);
-        pix[11] = (imgIn[(yOffs           + (x - 1))] * 24);
-        pix[12] = (imgIn[(yOffs           + (x    ))] * 36);
-        pix[13] = (imgIn[(yOffs           + (x + 1))] * 24);
-        pix[14] = (imgIn[(yOffs           + (x + 2))] *  6);
-        pix[15] = (imgIn[(yOffs + (    w) + (x - 2))] *  4);
-        pix[16] = (imgIn[(yOffs + (    w) + (x - 1))] * 16);
-        pix[17] = (imgIn[(yOffs + (    w) + (x    ))] * 24);
-        pix[18] = (imgIn[(yOffs + (    w) + (x + 1))] * 16);
-        pix[19] = (imgIn[(yOffs + (    w) + (x + 2))] *  4);
-        pix[20] = (imgIn[(yOffs + (2 * w) + (x - 2))] *  1);
-        pix[21] = (imgIn[(yOffs + (2 * w) + (x - 1))] *  4);
-        pix[22] = (imgIn[(yOffs + (2 * w) + (x    ))] *  6);
-        pix[23] = (imgIn[(yOffs + (2 * w) + (x + 1))] *  4);
-        pix[24] = (imgIn[(yOffs + (2 * w) + (x + 2))] *  1);
+        double[] gaus = gausR5S2_50;
+        pix[ 0] = (imgIn[(yOffs - (2 * w) + (x - 2))] * gaus[0]);
+        pix[ 1] = (imgIn[(yOffs - (2 * w) + (x - 1))] * gaus[1]);
+        pix[ 2] = (imgIn[(yOffs - (2 * w) + (x    ))] * gaus[2]);
+        pix[ 3] = (imgIn[(yOffs - (2 * w) + (x + 1))] * gaus[1]);
+        pix[ 4] = (imgIn[(yOffs - (2 * w) + (x + 2))] * gaus[0]);
+        pix[ 5] = (imgIn[(yOffs - (    w) + (x - 2))] * gaus[3]);
+        pix[ 6] = (imgIn[(yOffs - (    w) + (x - 1))] * gaus[4]);
+        pix[ 7] = (imgIn[(yOffs - (    w) + (x    ))] * gaus[5]);
+        pix[ 8] = (imgIn[(yOffs - (    w) + (x + 1))] * gaus[4]);
+        pix[ 9] = (imgIn[(yOffs - (    w) + (x + 2))] * gaus[3]);
+        pix[10] = (imgIn[(yOffs           + (x - 2))] * gaus[6]);
+        pix[11] = (imgIn[(yOffs           + (x - 1))] * gaus[7]);
+        pix[12] = (imgIn[(yOffs           + (x    ))] * gaus[8]);
+        pix[13] = (imgIn[(yOffs           + (x + 1))] * gaus[7]);
+        pix[14] = (imgIn[(yOffs           + (x + 2))] * gaus[6]);
+        pix[15] = (imgIn[(yOffs + (    w) + (x - 2))] * gaus[3]);
+        pix[16] = (imgIn[(yOffs + (    w) + (x - 1))] * gaus[4]);
+        pix[17] = (imgIn[(yOffs + (    w) + (x    ))] * gaus[5]);
+        pix[18] = (imgIn[(yOffs + (    w) + (x + 1))] * gaus[4]);
+        pix[19] = (imgIn[(yOffs + (    w) + (x + 2))] * gaus[3]);
+        pix[20] = (imgIn[(yOffs + (2 * w) + (x - 2))] * gaus[0]);
+        pix[21] = (imgIn[(yOffs + (2 * w) + (x - 1))] * gaus[1]);
+        pix[22] = (imgIn[(yOffs + (2 * w) + (x    ))] * gaus[2]);
+        pix[23] = (imgIn[(yOffs + (2 * w) + (x + 1))] * gaus[1]);
+        pix[24] = (imgIn[(yOffs + (2 * w) + (x + 2))] * gaus[0]);
         double sum = 0;
         for (int i = 0; i < 25; i++) {
             sum += pix[i];
         }
-        return (int)(sum/256);
+        return (int)(sum/gaus[9]);
     }
 
     /**
