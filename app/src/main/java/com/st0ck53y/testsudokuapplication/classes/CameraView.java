@@ -128,13 +128,12 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         int w, h;
         w = PreviewSizeWidth;
         h = PreviewSizeHeight;
-        int[] diffed = pxl;
-//        int[] diffed = ImageProcessor.sobelDifferential(pxl,w,h);
+        int[] diffed = ImageProcessor.sobelDifferential(pxl,w,h);
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 int val = diffed[y*w+x];
-//                if (val < 30) val = 0;
-//                else if (val >= 30) val = 0xff;
+                if (val < 30) val = 0;
+                else if (val >= 30) val = 0xff;
                 pixels[(y*w) + x] = 0xff000000 | ((val & 0xff) << 16) | ((val & 0xff) << 8) | (val & 0xff);
             }
         }
@@ -155,13 +154,13 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             int[] pixLum = yFromYUV();
             long ts = System.nanoTime();
             pixLum = ImageProcessor.gaussianBlurNS(pixLum,PreviewSizeWidth,PreviewSizeHeight, 7);
-//            sobelEdgeDetectorPoor(pixLum);
+            sobelEdgeDetectorPoor(pixLum);
             long te = System.nanoTime();
             thisTime = (te-ts)/1000000;
             totalTime+=thisTime;
             times++;
             Log.i("avg times", ""+totalTime/times);
-            lumToRGB(pixLum);
+//            lumToRGB(pixLum);
             bitmap.setPixels(pixels, 0, PreviewSizeWidth, 0, 0, PreviewSizeWidth, PreviewSizeHeight);
 //
             Matrix matrix = new Matrix();

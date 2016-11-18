@@ -49,10 +49,10 @@ public class ImageProcessor {
      * @param imgIn array of pixel data for a single channel
      * @param width width of image
      * @param height height of image
-     * @param radius
+     * @param diameter
      * @return single channel image blurred
      */
-    public static int[] gaussianBlurNS(int[] imgIn, int width, int height, int radius) {
+    public static int[] gaussianBlurNS(int[] imgIn, int width, int height, int diameter) {
         int arrSize = width*height;
         int[] imgOut = new int[arrSize];
         for (int p = 0; p < width; p++) {
@@ -67,23 +67,21 @@ public class ImageProcessor {
             int yNeg = yOffs - width;
             int yPos = yOffs + width;
             for (int x = 1; x < width - 1; x++) {
-                switch(radius) {
-                    case 3:
-                        imgOut[yOffs+x] = blurPixel3(imgIn, x, yOffs, yNeg, yPos);
-                        break;
-                    case 5:
-                        if (y < 2 || y >= height-2 || x < 2 || x >= width-2) {
-                            imgOut[yOffs+x] = imgIn[yOffs+x];
-                        } else {
+                int border = (diameter -1)/2;
+                if (y < border || y >= height-border || x < border || x >= width-border) {
+                    imgOut[yOffs+x] = imgIn[yOffs+x];
+                } else {
+                    switch(diameter) {
+                        case 3:
+                            imgOut[yOffs+x] = blurPixel3(imgIn, x, yOffs, yNeg, yPos);
+                            break;
+                        case 5:
                             imgOut[yOffs+x] = blurPixel5(imgIn,x,yOffs,width);
-                        }
-                        break;
-                    case 7:
-                        if (y < 3 || y >= height-3 || x < 3 || x >= width-3) {
-                            imgOut[yOffs+x] = imgIn[yOffs+x];
-                        } else {
+                            break;
+                        case 7:
                             imgOut[yOffs+x] = blurPixel7(imgIn,x,yOffs,width);
-                        }
+                            break;
+                    }
                 }
             }
         }
