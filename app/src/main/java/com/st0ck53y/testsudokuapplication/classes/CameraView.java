@@ -39,12 +39,15 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
 
         camera = c;
         camera.setDisplayOrientation(90);
+        Camera.Parameters cPar = c.getParameters();
+        cPar.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
+        c.setParameters(cPar);
 
         sHolder = getHolder();
         sHolder.addCallback(this);
         sHolder.setType(SurfaceHolder.SURFACE_TYPE_NORMAL);
 
-        List<Camera.Size> sizes = c.getParameters().getSupportedPreviewSizes();
+        List<Camera.Size> sizes = cPar.getSupportedPreviewSizes();
         PreviewSizeWidth = sizes.get(0).width;
         PreviewSizeHeight = sizes.get(0).height;
 
@@ -143,15 +146,15 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             processing = true;
 //            YUV_NV21_TO_RGB(pixels,framedat,PreviewSizeWidth,PreviewSizeHeight);
             int[] pixLum = yFromYUV();
-            lumToRGB(pixLum);
             long ts = System.nanoTime();
             pixLum = ImageProcessor.gaussianBlurNS(pixLum,PreviewSizeWidth,PreviewSizeHeight, 7);
-            sobelEdgeDetectorPoor(pixLum);
+//            sobelEdgeDetectorPoor(pixLum);
             long te = System.nanoTime();
             thisTime = (te-ts)/1000000;
             totalTime+=thisTime;
             times++;
             Log.i("avg times", ""+totalTime/times);
+            lumToRGB(pixLum);
             bitmap.setPixels(pixels, 0, PreviewSizeWidth, 0, 0, PreviewSizeWidth, PreviewSizeHeight);
 //
             Matrix matrix = new Matrix();
