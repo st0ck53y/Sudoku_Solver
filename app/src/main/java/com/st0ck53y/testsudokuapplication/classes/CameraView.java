@@ -105,8 +105,15 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
 
     private int[] yFromYUV() {
         int[] dat = new int[PreviewSizeWidth * PreviewSizeHeight];
+        int datLow[] = new int[2];
+        int datHigh[] = new int[2];
         for (int i = 0; i < dat.length; i++) {
-            dat[i] = framedat[i];
+            dat[i] = framedat[i]&0xff; //GODDANGIT!! its not unsigned!!
+//            dat[i] += 128; // this seems to screw it up, even though its the same?
+            if (framedat[i] < datLow[0]) datLow[0] = framedat[i];
+            if (framedat[i] >datHigh[0]) datHigh[0]= framedat[i];
+            if (     dat[i] < datLow[1]) datLow[1] =      dat[i];
+            if (     dat[i] >datHigh[1]) datHigh[1]=      dat[i];
         }
         return dat;
     }
