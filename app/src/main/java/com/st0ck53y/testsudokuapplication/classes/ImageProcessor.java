@@ -42,6 +42,71 @@ public class ImageProcessor {
         return imgOut;
     }
 
+    public static int[] gaussianBlur(int[] imgIn, int w, int h, int d) {
+        int arrSize = w*h;
+        int[] imgOut = new int[arrSize];
+        int radius = (d-1)/2; //either side of center, non-inclusive
+        for (int py = 0; py < radius; py++) {
+            for (int px = 0; px < w; px++) {
+                imgOut[(py*w)+px] = imgIn[(py*w)+px];
+                imgOut[arrSize-((py*w)+px+1)] = imgIn[arrSize-((py*w)+px+1)];// -(x+1) == -(x)-1
+            }
+        }
+
+        // DO Separated gaussian here!
+        //Blur horizontal
+        int[] imgHor = new int[arrSize];
+        for (int y = 0; y < h; y++) {
+            int yOffs = y*w;
+            //pass through TODO handle edges
+            for (int x = 0; x < radius; x++) { //puts unreachable pixels on the sides of the image into the next step
+                imgHor[yOffs+x] = imgIn[yOffs+x];
+                imgHor[(yOffs + w - 1) - x] = imgIn[(yOffs + w - 1) - x];
+            }
+            //blur
+            for (int x = radius; x < w-radius; x++) {
+                switch(d) {
+                    case 3:
+
+                        break;
+                    case 5:
+
+                        break;
+                    case 7:
+                        imgHor[yOffs + x] = blurPixel7Hor(imgIn,x,yOffs);
+                        break;
+                }
+            }
+        }
+
+        //blur vertical
+        for (int y = 0; y < radius; y++) {
+            int yOffsT = (y*w);
+            int yOffsB = ((h-1)-y)*w;
+            for (int x = 0; x < w; x++) {
+                imgOut[yOffsT+x] = imgHor[yOffsT+x];
+                imgOut[yOffsB+x] = imgHor[yOffsB+x];
+            }
+        }
+        for (int y = radius; y < (h-radius); y++) {
+            int yOffs = y*w;
+            for (int x = 0; x < w; x++) {
+                switch(d) {
+                    case 3:
+
+                        break;
+                    case 5:
+
+                        break;
+                    case 7:
+                        imgOut[yOffs+x] = blurPixel7Ver(imgHor,x,yOffs,w);
+                        break;
+                }
+            }
+        }
+        return imgOut;
+    }
+
     // ~ 737 divisions+multiplications for a 10x10 image ... eg almost half the loops, but twice the operations
     /**
      * Blurs a single channel image using gaussian method with kernel size of 3
@@ -103,10 +168,11 @@ public class ImageProcessor {
     }
 
     //top right corner of grid as Gaussian is symmetric + divisor
-    static double[] gausR5SU = {1,4,6,4,16,24,6,24,36,256};
-    static double[] gausR5S0_75 = {0.000499,0.005137,0.011068,0.005137,0.052872,0.113921,0.011068,0.113921,0.245461,1};
-    static double[] gausR5S2_50 = {0.028672,0.036333,0.039317,0.036333,0.046042,0.049824,0.039317,0.049824,0.053916,1};
-    static double[] gausR7S3_50 = {0.013347,0.016346,0.018460,0.019223,0.016346,0.020019,0.022608,0.023543,0.018460,0.022608,0.025532,0.026588,0.019223,0.023543,0.026588,0.027688,1};
+    final static double[] gausR5SU = {1,4,6,4,16,24,6,24,36,256};
+    final static double[] gausR5S0_75 = {0.000499,0.005137,0.011068,0.005137,0.052872,0.113921,0.011068,0.113921,0.245461};
+    final static double[] gausR5S2_50 = {0.028672,0.036333,0.039317,0.036333,0.046042,0.049824,0.039317,0.049824,0.053916};
+    final static double[] gausR7S3_50 = {0.013347,0.016346,0.018460,0.019223,0.016346,0.020019,0.022608,0.023543,0.018460,0.022608,0.025532,0.026588,0.019223,0.023543,0.026588,0.027688};
+    final static double[] gauSR7S3_50 = {0.115528,0.141488,0.159786,0.166396}; //1D kernel (first half, symmetric)
 
     static int blurPixel5(int[] imgIn, int x, int yOffs, int w) {
         double[] pix = new double[25];
@@ -137,10 +203,10 @@ public class ImageProcessor {
         pix[23] = (imgIn[(yOffs + (2 * w) + (x + 1))] * gaus[1]);
         pix[24] = (imgIn[(yOffs + (2 * w) + (x + 2))] * gaus[0]);
         double sum = 0;
-        for (int i = 0; i < 25; i++) {
+        for (int i = 0; i < pix.length; i++) {
             sum += pix[i];
         }
-        return (int)(sum/gaus[9]);
+        return (int)(sum);
     }
 
     static int blurPixel7(int[] imgIn, int x, int yOffs, int w) {
@@ -196,10 +262,44 @@ public class ImageProcessor {
         pix[47] = (imgIn[yOffs + (3 * w) + (x + 2)] * gaus[ 1]);
         pix[48] = (imgIn[yOffs + (3 * w) + (x + 3)] * gaus[ 0]);
         double sum = 0;
-        for (int i = 0; i < 49; i++) {
+        for (int i = 0; i < pix.length; i++) {
             sum += pix[i];
         }
-        return (int)(sum/gaus[16]);
+        return (int)(sum);
+    }
+
+    static int blurPixel7Hor(int[] imgIn, int x, int yOffs) {
+        double[] pix = new double[7];
+        double[] gaus = gauSR7S3_50;
+        pix[0] = (imgIn[yOffs + (x - 3)] * gaus[0]);
+        pix[1] = (imgIn[yOffs + (x - 2)] * gaus[1]);
+        pix[2] = (imgIn[yOffs + (x - 1)] * gaus[2]);
+        pix[3] = (imgIn[yOffs + (x    )] * gaus[3]);
+        pix[4] = (imgIn[yOffs + (x + 1)] * gaus[2]);
+        pix[5] = (imgIn[yOffs + (x + 2)] * gaus[1]);
+        pix[6] = (imgIn[yOffs + (x + 3)] * gaus[0]);
+        double sum = 0;
+        for (int i = 0; i < pix.length; i++) {
+            sum += pix[i];
+        }
+        return (int)(sum);
+    }
+
+    static int blurPixel7Ver(int[] imgIn, int x, int yOffs, int w) {
+        double[] pix = new double[7];
+        double[] gaus = gauSR7S3_50;
+        pix[0] = (imgIn[(yOffs - (3 * w)) + x] * gaus[0]);
+        pix[1] = (imgIn[(yOffs - (2 * w)) + x] * gaus[1]);
+        pix[2] = (imgIn[(yOffs - (    w)) + x] * gaus[2]);
+        pix[3] = (imgIn[(yOffs          ) + x] * gaus[3]);
+        pix[4] = (imgIn[(yOffs + (    w)) + x] * gaus[2]);
+        pix[5] = (imgIn[(yOffs + (2 * w)) + x] * gaus[1]);
+        pix[6] = (imgIn[(yOffs + (3 * w)) + x] * gaus[0]);
+        double sum = 0;
+        for (int i = 0; i < pix.length; i++) {
+            sum += pix[i];
+        }
+        return (int)(sum);
     }
 
     /**
