@@ -47,13 +47,13 @@ public class Canny {
                     continue;
                 }
                 int dir = direction[yOffs+x];
-                if (dir < -67 || dir > 67) { //Vertical
+                if (dir < -67 || dir > 67) { //Horizontal
                     image[yOffs+x] = (0xff000000 | ((gradient[yOffs+x]*10)<<16));
-                } else if (dir > -23 && dir < 23) { //Horizontal
+                } else if (dir > -23 && dir < 23) { //Vertical
                     image[yOffs+x] = (0xff000000 | ((gradient[yOffs+x]*10)<<8));
-                } else if (dir < -22) { //up right - down left
+                } else if (dir < -22) { //down right - up left
                     image[yOffs+x] = (0xff000000 | ((gradient[yOffs+x]*10)));
-                } else { //down right - up left
+                } else { //up right - down left
                     image[yOffs+x] = (0xff000000 | ((gradient[yOffs+x]*10)<<8) | ((gradient[yOffs+x]*10)) );
                 }
             }
