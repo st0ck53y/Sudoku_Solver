@@ -135,7 +135,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
 //            YUV_NV21_TO_RGB(pixels,framedat,PreviewSizeWidth,PreviewSizeHeight);
             int[] pixLum = yFromYUV();
             long ts = System.nanoTime();
-            Canny edge = new Canny(pixLum,PreviewSizeWidth,PreviewSizeHeight,3,10,40);
+            Canny edge = new Canny(pixLum,PreviewSizeWidth,PreviewSizeHeight,3,6,13);
             edge.computeGradientAngles();
             edge.suppressNonMaxima();
             long te = System.nanoTime();
@@ -143,8 +143,8 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             totalTime+=thisTime;
             times++;
             Log.i("avg times", ""+totalTime/times);
-            pixels = edge.getImage();
-//            lumToRGB(pixLum);
+            pixLum = edge.getImage();
+            lumToRGB(pixLum);
             bitmap.setPixels(pixels, 0, PreviewSizeWidth, 0, 0, PreviewSizeWidth, PreviewSizeHeight);
 
             Matrix matrix = new Matrix();

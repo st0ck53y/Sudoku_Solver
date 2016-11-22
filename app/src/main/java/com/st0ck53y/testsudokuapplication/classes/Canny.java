@@ -48,16 +48,48 @@ public class Canny {
                 }
                 int dir = direction[yOffs+x];
                 if (dir < -67 || dir > 67) { //Horizontal
-                    image[yOffs+x] = (0xff000000 | ((gradient[yOffs+x]*10)<<16));
+                    if (gradient[yOffs+x] < gradient[yOffs+x+w] || gradient[yOffs+x] < gradient[yOffs+x-w]) {
+                        image[yOffs+x] = 0;
+                    } else {
+                        image[yOffs+x] = gradient[yOffs+x];
+                    }
                 } else if (dir > -23 && dir < 23) { //Vertical
-                    image[yOffs+x] = (0xff000000 | ((gradient[yOffs+x]*10)<<8));
+                    if (gradient[yOffs+x] < gradient[yOffs+x+1] || gradient[yOffs+x] < gradient[yOffs+x-1]) {
+                        image[yOffs+x] = 0;
+                    } else {
+                        image[yOffs+x] = gradient[yOffs+x];
+                    }
                 } else if (dir < -22) { //down right - up left
-                    image[yOffs+x] = (0xff000000 | ((gradient[yOffs+x]*10)));
+                    if (gradient[yOffs+x] < gradient[yOffs+x+(w-1)] || gradient[yOffs+x] < gradient[yOffs+x-(w-1)]) {
+                        image[yOffs+x] = 0;
+                    } else {
+                        image[yOffs+x] = gradient[yOffs+x];
+                    }
                 } else { //up right - down left
-                    image[yOffs+x] = (0xff000000 | ((gradient[yOffs+x]*10)<<8) | ((gradient[yOffs+x]*10)) );
+                    if (gradient[yOffs+x] < gradient[yOffs+x+(w+1)] || gradient[yOffs+x] < gradient[yOffs+x-(w+1)]) {
+                        image[yOffs+x] = 0;
+                    } else {
+                        image[yOffs+x] = gradient[yOffs+x];
+                    }
                 }
             }
         }
+    }
+
+    public void applyThresholds() {
+        int[] lower = new int[w*h];
+        int[] higher = new int[w*h];
+        int[] visited = new int[w*h];
+        int[] promote = new int[w*h];
+        for (int i = 0; i < w*h; i++) {
+            if (image[i] > tH) {
+                higher[i] = image[i];
+            } else if (image[i] > tL) {
+                lower[i] = image[i];
+            }
+        }
+
+        //hysteresis
     }
 
     private static double computeXDerivative(int... imgKernel) {
