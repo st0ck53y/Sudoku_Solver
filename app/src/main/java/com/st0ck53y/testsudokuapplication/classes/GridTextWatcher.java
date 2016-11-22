@@ -62,7 +62,9 @@ public class GridTextWatcher implements TextWatcher {
             e.setText(text);
             e.addTextChangedListener(this);
         }
-        NewGrid.solveButt = true;
-        ng.solveText("Solve!");
+        if (!ng.ignoreTextChange) {
+            NewGrid.solveButt = true;
+            ng.solveText("Solve!");
+        }
     }
 }

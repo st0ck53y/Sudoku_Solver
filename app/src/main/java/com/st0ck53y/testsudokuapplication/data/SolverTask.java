@@ -19,7 +19,7 @@ public class SolverTask extends AsyncTask<String, Void, int[][]> {
     protected int[][] doInBackground(String... values) {
         Solver s = new Solver(grid);
         s.solvePuzzle();
-        return s.getSolution(0);
+        return s.getSolution();
     }
 
     @Override
