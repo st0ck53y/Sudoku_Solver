@@ -58,7 +58,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
     int frame = 0;
     @Override
     public void onPreviewFrame(byte[] arg0, Camera cam) {
-        if (frame < 30) {
+        if (frame < 90) {
             frame++;
             return;
         }
@@ -135,9 +135,13 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
 //            YUV_NV21_TO_RGB(pixels,framedat,PreviewSizeWidth,PreviewSizeHeight);
             int[] pixLum = yFromYUV();
             long ts = System.nanoTime();
-            Canny edge = new Canny(pixLum,PreviewSizeWidth,PreviewSizeHeight,3,6,13);
+            Canny edge = new Canny(pixLum,PreviewSizeWidth,PreviewSizeHeight,3,17,35);
+            Log.i("prog","Canny created");
             edge.computeGradientAngles();
+            Log.i("prog","gradients computed");
             edge.suppressNonMaxima();
+            Log.i("prog","suppressed non maxima");
+            edge.applyThresholds();
             long te = System.nanoTime();
             thisTime = (te-ts)/1000000;
             totalTime+=thisTime;

@@ -77,19 +77,111 @@ public class Canny {
     }
 
     public void applyThresholds() {
-        int[] lower = new int[w*h];
-        int[] higher = new int[w*h];
-        int[] visited = new int[w*h];
-        int[] promote = new int[w*h];
-        for (int i = 0; i < w*h; i++) {
+        int a = w*h;
+        int[] lower = new int[a];
+        int[] higher = new int[a];
+        boolean[] visited = new boolean[a];
+        for (int i = 0; i < a; i++) {
             if (image[i] > tH) {
                 higher[i] = image[i];
+                lower[i] = image[i]; //put in lower too because the line crawling is simpler as a single variable to check
             } else if (image[i] > tL) {
                 lower[i] = image[i];
+            } else {
+                image[i] = 0;
             }
         }
 
+        int cy,cx;
+        boolean np;
         //hysteresis
+        for (int y = 1; y < h - 1; y++) {
+            int yOffs = y*w;
+            for (int x = 1; x < w - 1; x++) {
+                if (visited[yOffs+x]) continue; //skip pixel if already done
+                if (higher[yOffs+x] > 0) {
+                    cy = y;
+                    cx = x;
+                    do {
+                        np = false;
+                        if ((cy*w)+cx >= a || (cy*w)+cx < 0) break;
+                        image[(cy*w)+cx] = lower[(cy*w)+cx];
+                        visited[(cy*w)+cx] = true;
+                        int i = ((cy-1)*w) + (cx-1);
+                        if (i < a && i >= 0 && !visited[i]) {
+                            if (lower[i] > 0) {
+                                cy -= 1;
+                                cx -= 1;
+                                np = true;
+                                continue;
+                            }
+                        }
+                        i = ((cy-1)*w) + (cx);
+                        if (i < a && i >= 0 && !visited[i]) {
+                            if (lower[i] > 0) {
+                                cy -= 1;
+                                np = true;
+                                continue;
+                            }
+                        }
+                        i = ((cy-1)*w) + (cx+1);
+                        if (i < a && i >= 0 && !visited[i]) {
+                            if (lower[i] > 0) {
+                                cy -= 1;
+                                cx += 1;
+                                np = true;
+                                continue;
+                            }
+                        }
+                        i = (cy)*w + (cx-1);
+                        if (i < a && i >= 0 && !visited[i]) {
+                            if (lower[i] > 0) {
+                                cx-=1;
+                                np = true;
+                                continue;
+                            }
+                        }
+                        i = (cy)*w + (cx+1);
+                        if (i < a && i >= 0 && !visited[i]) {
+                            if (lower[i] > 0) {
+                                cx+=1;
+                                np = true;
+                                continue;
+                            }
+                        }
+                        i = (cy+1)*w + (cx-1);
+                        if (i < a && i >= 0 && !visited[i]) {
+                            if (lower[i] > 0) {
+                                cy+=1;
+                                cx-=1;
+                                np = true;
+                                continue;
+                            }
+                        }
+                        i = (cy+1)*w + (cx);
+                        if (i < a && i >= 0 && !visited[i]) {
+                            if (lower[i] > 0) {
+                                cy+=1;
+                                np = true;
+                                continue;
+                            }
+                        }
+                        i = (cy+1)*w + (cx+1);
+                        if (i < a && i >= 0 && !visited[i]) {
+                            if (lower[i] > 0) {
+                                cy+=1;
+                                cx+=1;
+                                np = true;
+                            }
+                        }
+                    } while (np);
+                }
+            }
+        }
+
+        for (int i = 0; i < a; i++) {
+            if (image[i] != 0) image[i] = 255;
+        }
     }
 
     private static double computeXDerivative(int... imgKernel) {
@@ -108,4 +200,8 @@ public class Canny {
         return (int) Math.round(Math.toDegrees(Math.atan(y/x)));
     }
 
+    private static int[] findPixel(int last, int[] grid) {
+
+        return new int[]{};
+    }
 }
