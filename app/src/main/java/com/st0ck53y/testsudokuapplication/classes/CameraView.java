@@ -58,7 +58,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
     int frame = 0;
     @Override
     public void onPreviewFrame(byte[] arg0, Camera cam) {
-        if (frame < 5) {
+        if (frame < 30) {
             frame++;
             return;
         }
@@ -124,24 +124,6 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         }
     }
 
-    private void sobelEdgeDetectorPoor(int[] pxl) {
-        int w, h;
-        w = PreviewSizeWidth;
-        h = PreviewSizeHeight;
-        int[] diffed = ImageProcessor.sobelDifferential(pxl,w,h);
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int val = diffed[y*w+x];
-                if (val < 30) val = 0;
-                else if (val >= 30) val = 0xff;
-                pixels[(y*w) + x] = 0xff000000 | ((val & 0xff) << 16) | ((val & 0xff) << 8) | (val & 0xff);
-            }
-        }
-        //takes ~ 1.5 seconds on average
-    }
-
-
-
     static long totalTime = 0;
     static long thisTime = 0;
     static long times = 0;
@@ -153,16 +135,18 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
 //            YUV_NV21_TO_RGB(pixels,framedat,PreviewSizeWidth,PreviewSizeHeight);
             int[] pixLum = yFromYUV();
             long ts = System.nanoTime();
-            pixLum = ImageProcessor.gaussianBlur(pixLum,PreviewSizeWidth,PreviewSizeHeight, 7);
-//            sobelEdgeDetectorPoor(pixLum);
+            Canny edge = new Canny(pixLum,PreviewSizeWidth,PreviewSizeHeight,3,10,40);
+            edge.computeGradientAngles();
+            edge.suppressNonMaxima();
             long te = System.nanoTime();
             thisTime = (te-ts)/1000000;
             totalTime+=thisTime;
             times++;
             Log.i("avg times", ""+totalTime/times);
-            lumToRGB(pixLum);
+            pixels = edge.getImage();
+//            lumToRGB(pixLum);
             bitmap.setPixels(pixels, 0, PreviewSizeWidth, 0, 0, PreviewSizeWidth, PreviewSizeHeight);
-//
+
             Matrix matrix = new Matrix();
             matrix.postRotate(90);
             Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap,PreviewSizeWidth,PreviewSizeHeight,true);

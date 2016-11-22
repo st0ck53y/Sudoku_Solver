@@ -67,8 +67,8 @@ public class ImageProcessor {
             for (int x = radius; x < w-radius; x++) {
                 switch(d) {
                     case 3:
-
-                        break;
+                        return gaussianBlur3(imgIn,w,h); //quick temp hack TODO fix
+//                        break;
                     case 5:
 
                         break;
