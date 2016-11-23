@@ -1,6 +1,5 @@
 package com.st0ck53y.testsudokuapplication.activity;
 
-import android.content.Intent;
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -32,59 +31,10 @@ public class ScanGrid extends AppCompatActivity {
             Log.w("Camera", "Could not access Camera");
         }
 
-        if (cam != null && cv == null) {
+        if (cam != null) {
             cv = new CameraView(this, cam);
             FrameLayout camera_view = (FrameLayout) findViewById(R.id.camera_view);
             camera_view.addView(cv);
         }
-    }
-
-    @Override
-    protected void onResume() {
-        Log.i("scan","resume");
-        if (cam == null) {
-            try {
-                cam = Camera.open();
-                if (cv == null) {
-                    cv = new CameraView(this, cam);
-                    FrameLayout camera_view = (FrameLayout) findViewById(R.id.camera_view);
-                    camera_view.addView(cv);
-                }
-            } catch (Exception e) {
-                Log.e("err",e.toString());
-                Intent i = new Intent();
-                i.setClass(getApplicationContext(), Home.class);
-                i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                startActivity(i);
-            }
-        }
-        super.onResume();
-    }
-    @Override
-    protected void onPause() {
-        Log.i("scan","pause");
-        if (cam != null) {
-            cam.stopPreview();
-            cam.setPreviewCallback(null);
-            cam.lock();
-            cam.release();
-            cam=null;
-            cv = null;
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-        }
-        super.onPause();
-    }
-    @Override
-    protected void onDestroy() {
-        if (cam != null) {
-            cam.release();
-            cam = null;
-        }
-        super.onDestroy();
     }
 }
