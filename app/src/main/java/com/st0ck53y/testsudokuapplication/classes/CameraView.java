@@ -23,6 +23,9 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
     private boolean processing = false;
     private int imageFormat;
 
+    Matrix matrix;
+    private Bitmap scaled = null;
+    private Bitmap rotate = null;
     private Bitmap bitmap = null;
     IntBuffer out;
     private int[] pixels = null;
@@ -37,11 +40,12 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
     static int PreviewSizeWidth;
     static int PreviewSizeHeight;
 
+    static {
+        System.loadLibrary("ImageProcessing");
+    }
 
     public CameraView(Context context, Camera c) {
         super(context);
-
-        System.loadLibrary("ImageProcessing");
 
         camera = c;
         camera.setDisplayOrientation(90);
@@ -57,10 +61,14 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         PreviewSizeWidth = sizes.get(0).width;
         PreviewSizeHeight = sizes.get(0).height;
 
+        matrix = new Matrix();
+        matrix.postRotate(90);
+
         bitmap = Bitmap.createBitmap(PreviewSizeWidth, PreviewSizeHeight, Bitmap.Config.ARGB_8888);
         pixels = new int[PreviewSizeWidth * PreviewSizeHeight];
         //must specify endianness.... native is big endian, this is not :'(
         this.out = ByteBuffer.allocateDirect(PreviewSizeWidth*PreviewSizeHeight*4).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer();
+        dat = new int[PreviewSizeWidth * PreviewSizeHeight];
     }
 
     private native void nativeCanny(int[] imgData, int width, int height, int lower, int higher, IntBuffer imgOut);
@@ -113,8 +121,9 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         }
     }
 
+    static int[] dat;
+
     private int[] yFromYUV() {
-        int[] dat = new int[PreviewSizeWidth * PreviewSizeHeight];
         int datLow[] = new int[2];
         int datHigh[] = new int[2];
         for (int i = 0; i < dat.length; i++) {
@@ -157,6 +166,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
 
             nativeCanny(pixLum,w,h,8,30,out); //currently only has 3x3 blur in native
             out.get(pixLum).rewind();
+            out.position(0);
 
             long te = System.nanoTime();
             thisTime = (te-ts)/1000000;
@@ -167,12 +177,10 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             lumToRGB(pixLum);
             bitmap.setPixels(pixels, 0, PreviewSizeWidth, 0, 0, PreviewSizeWidth, PreviewSizeHeight);
 
-            Matrix matrix = new Matrix();
-            matrix.postRotate(90);
-            Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap,PreviewSizeWidth,PreviewSizeHeight,true);
-            Bitmap rotatedBitmap = Bitmap.createBitmap(scaledBitmap , 0, 0, scaledBitmap .getWidth(), scaledBitmap .getHeight(), matrix, true);
+            scaled = Bitmap.createScaledBitmap(bitmap,PreviewSizeWidth,PreviewSizeHeight,true);
+            rotate = Bitmap.createBitmap(scaled , 0, 0, scaled.getWidth(), scaled.getHeight(), matrix, true);
 
-            ScanGrid.iv.setImageBitmap(rotatedBitmap);
+            ScanGrid.iv.setImageBitmap(rotate);
             processing = false;
         }
     };

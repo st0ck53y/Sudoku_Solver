@@ -31,6 +31,7 @@ Java_com_st0ck53y_testsudokuapplication_classes_CameraView_nativeCanny(
     suppressNonMaxima(temp_buff, w, h, gradient, direction);
     applyThreshold(temp_buff, w, h, threshLow, threshHigh, output_buffer);
 
+    (env)->ReleaseIntArrayElements(imgData, image_buffer, JNI_ABORT);
     free(image_buffer);
     free(temp_buff);
     free(gradient);
