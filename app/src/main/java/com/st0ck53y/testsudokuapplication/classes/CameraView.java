@@ -155,7 +155,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
 //            Log.i("prog","suppressed non maxima");
 //            edge.applyThresholds();
 
-            nativeCanny(pixLum,w,h,17,35,out); //currently only has 3x3 blur in native
+            nativeCanny(pixLum,w,h,8,30,out); //currently only has 3x3 blur in native
             out.get(pixLum).rewind();
 
             long te = System.nanoTime();

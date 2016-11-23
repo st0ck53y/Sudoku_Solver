@@ -14,6 +14,8 @@
 
 void gaussianBlur(int* imgIn, int w, int h, int* output);
 void computeGradientAngles(int* imgIn, int w, int h, int* gradient, int* direction);
+void suppressNonMaxima(int* imgIn, int w, int h, int* gradient, int* direction);
+void applyThreshold(int* imgIn, int w, int h, int tL, int tH, int* out);
 double computeXDerivative(int a, int b, int c, int d);
 double computeYDerivative(int a, int b, int c, int d);
 double toDegrees(double rad);
