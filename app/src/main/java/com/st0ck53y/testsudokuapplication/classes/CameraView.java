@@ -187,6 +187,8 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             camera.startPreview();
         } catch (IOException ex) {
             Log.w("Camera","Preview could not be displayed, surfaceCreated Err");
+        } catch (Exception e) {
+            //
         }
 
     }
@@ -206,12 +208,18 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             camera.startPreview();
         }catch (IOException ex) {
             Log.w("Camera","Preview could not be displayed, surfaceChanged Err");
+        } catch (Exception e) {
+            //
         }
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
-        camera.stopPreview();
-        camera.release();
+        try {
+            camera.stopPreview();
+            camera.release();
+        } catch (Exception e) {
+            //
+        }
     }
 }
