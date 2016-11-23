@@ -124,15 +124,8 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
     static int[] dat;
 
     private int[] yFromYUV() {
-        int datLow[] = new int[2];
-        int datHigh[] = new int[2];
         for (int i = 0; i < dat.length; i++) {
-            dat[i] = framedat[i]&0xff; //GODDANGIT!! its not unsigned!!
-//            dat[i] += 128; // this seems to screw it up, even though its the same?
-            if (framedat[i] < datLow[0]) datLow[0] = framedat[i];
-            if (framedat[i] >datHigh[0]) datHigh[0]= framedat[i];
-            if (     dat[i] < datLow[1]) datLow[1] =      dat[i];
-            if (     dat[i] >datHigh[1]) datHigh[1]=      dat[i];
+            dat[i] = framedat[i]&0xff;
         }
         return dat;
     }
@@ -164,7 +157,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
 //            Log.i("prog","suppressed non maxima");
 //            edge.applyThresholds();
 
-            nativeCanny(pixLum,w,h,8,30,out); //currently only has 3x3 blur in native
+            nativeCanny(pixLum,w,h,10,20,out); //currently only has 3x3 blur in native
             out.get(pixLum).rewind();
             out.position(0);
 
