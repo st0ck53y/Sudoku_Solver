@@ -14,6 +14,9 @@ import android.view.SurfaceView;
 import com.st0ck53y.testsudokuapplication.activity.ScanGrid;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.util.List;
 
 public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Camera.PreviewCallback {
@@ -21,6 +24,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
     private int imageFormat;
 
     private Bitmap bitmap = null;
+    IntBuffer out;
     private int[] pixels = null;
     private byte[] framedat = null;
 
@@ -36,6 +40,8 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
 
     public CameraView(Context context, Camera c) {
         super(context);
+
+        System.loadLibrary("ImageProcessing");
 
         camera = c;
         camera.setDisplayOrientation(90);
@@ -53,7 +59,11 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
 
         bitmap = Bitmap.createBitmap(PreviewSizeWidth, PreviewSizeHeight, Bitmap.Config.ARGB_8888);
         pixels = new int[PreviewSizeWidth * PreviewSizeHeight];
+        //must specify endianness.... native is big endian, this is not :'(
+        this.out = ByteBuffer.allocateDirect(PreviewSizeWidth*PreviewSizeHeight*4).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer();
     }
+
+    private native void nativeCanny(int[] imgData, int width, int height, int lower, int higher, IntBuffer imgOut);
 
     int frame = 0;
     @Override
@@ -134,20 +144,26 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             processing = true;
 //            YUV_NV21_TO_RGB(pixels,framedat,PreviewSizeWidth,PreviewSizeHeight);
             int[] pixLum = yFromYUV();
+            int w = PreviewSizeWidth;
+            int h = PreviewSizeHeight;
             long ts = System.nanoTime();
-            Canny edge = new Canny(pixLum,PreviewSizeWidth,PreviewSizeHeight,3,17,35);
-            Log.i("prog","Canny created");
-            edge.computeGradientAngles();
-            Log.i("prog","gradients computed");
-            edge.suppressNonMaxima();
-            Log.i("prog","suppressed non maxima");
-            edge.applyThresholds();
+//            Canny edge = new Canny(pixLum,PreviewSizeWidth,PreviewSizeHeight,3,17,35);
+//            Log.i("prog","Canny created");
+//            edge.computeGradientAngles();
+//            Log.i("prog","gradients computed");
+//            edge.suppressNonMaxima();
+//            Log.i("prog","suppressed non maxima");
+//            edge.applyThresholds();
+
+            nativeCanny(pixLum,w,h,17,35,out); //currently only has 3x3 blur in native
+            out.get(pixLum).rewind();
+
             long te = System.nanoTime();
             thisTime = (te-ts)/1000000;
             totalTime+=thisTime;
             times++;
             Log.i("avg times", ""+totalTime/times);
-            pixLum = edge.getImage();
+//            pixLum = edge.getImage();
             lumToRGB(pixLum);
             bitmap.setPixels(pixels, 0, PreviewSizeWidth, 0, 0, PreviewSizeWidth, PreviewSizeHeight);
 
