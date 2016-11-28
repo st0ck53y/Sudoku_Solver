@@ -12,6 +12,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import com.st0ck53y.testsudokuapplication.activity.ScanGrid;
+import com.st0ck53y.testsudokuapplication.helper.NativeHelper;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -34,19 +35,13 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
     private SurfaceHolder sHolder;
     private Camera camera;
 
-
     Handler handler = new Handler(Looper.getMainLooper());
 
     static int PreviewSizeWidth;
     static int PreviewSizeHeight;
 
-    static {
-        System.loadLibrary("ImageProcessing");
-    }
-
     public CameraView(Context context, Camera c) {
         super(context);
-
         camera = c;
         camera.setDisplayOrientation(90);
         Camera.Parameters cPar = c.getParameters();
@@ -68,20 +63,19 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         pixels = new int[PreviewSizeWidth * PreviewSizeHeight];
         //must specify endianness.... native is big endian, this is not :'(
         this.out = ByteBuffer.allocateDirect(PreviewSizeWidth*PreviewSizeHeight*4).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer();
-        dat = new int[PreviewSizeWidth * PreviewSizeHeight];
     }
-
-    private native void nativeCanny(int[] imgData, int width, int height, int lower, int higher, IntBuffer imgOut);
 
     int frame = 0;
     @Override
     public void onPreviewFrame(byte[] arg0, Camera cam) {
-        if (frame < 90) {
+        if (frame < 60) {
             frame++;
             return;
         }
         if (imageFormat == ImageFormat.NV21) {
             if (!processing) {
+                processing = true;
+                ScanGrid.iv.setImageBitmap(rotate);
                 framedat = arg0;
                 handler.post(processFrame);
             }
@@ -121,21 +115,6 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         }
     }
 
-    static int[] dat;
-
-    private int[] yFromYUV() {
-        for (int i = 0; i < dat.length; i++) {
-            dat[i] = framedat[i]&0xff;
-        }
-        return dat;
-    }
-
-    private void lumToRGB(int[] lum) {
-        for (int i = 0; i < lum.length; i++) {
-            pixels[i] = 0xff000000 | ((lum[i] & 0xff) << 16) | ((lum[i] & 0xff) << 8) | (lum[i] & 0xff);
-        }
-    }
-
     static long totalTime = 0;
     static long thisTime = 0;
     static long times = 0;
@@ -144,21 +123,12 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         @Override
         public void run() {
             processing = true;
-//            YUV_NV21_TO_RGB(pixels,framedat,PreviewSizeWidth,PreviewSizeHeight);
-            int[] pixLum = yFromYUV();
+            long ts = System.nanoTime();
             int w = PreviewSizeWidth;
             int h = PreviewSizeHeight;
-            long ts = System.nanoTime();
-//            Canny edge = new Canny(pixLum,PreviewSizeWidth,PreviewSizeHeight,3,17,35);
-//            Log.i("prog","Canny created");
-//            edge.computeGradientAngles();
-//            Log.i("prog","gradients computed");
-//            edge.suppressNonMaxima();
-//            Log.i("prog","suppressed non maxima");
-//            edge.applyThresholds();
 
-            nativeCanny(pixLum,w,h,10,20,out); //currently only has 3x3 blur in native
-            out.get(pixLum).rewind();
+            NativeHelper.nativeCanny(framedat,w,h,NativeHelper.tanned,15,35,out); //currently only has 3x3 blur in native
+            out.get(pixels).rewind();
             out.position(0);
 
             long te = System.nanoTime();
@@ -166,14 +136,11 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             totalTime+=thisTime;
             times++;
             Log.i("avg times", ""+totalTime/times);
-//            pixLum = edge.getImage();
-            lumToRGB(pixLum);
             bitmap.setPixels(pixels, 0, PreviewSizeWidth, 0, 0, PreviewSizeWidth, PreviewSizeHeight);
 
             scaled = Bitmap.createScaledBitmap(bitmap,PreviewSizeWidth,PreviewSizeHeight,true);
             rotate = Bitmap.createBitmap(scaled , 0, 0, scaled.getWidth(), scaled.getHeight(), matrix, true);
 
-            ScanGrid.iv.setImageBitmap(rotate);
             processing = false;
         }
     };

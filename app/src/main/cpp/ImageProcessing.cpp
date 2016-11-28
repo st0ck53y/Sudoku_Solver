@@ -6,15 +6,18 @@
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_st0ck53y_testsudokuapplication_classes_CameraView_nativeCanny(
+Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
         JNIEnv *env,
-        jobject obj,
-        jintArray imgData, jint width, jint height, jint lowerThreshold,
+        jclass obj,
+        jbyteArray imgData, jint width, jint height, jintArray preDirs,
+        jint lowerThreshold,
         jint higherThreshold, jobject out) {
 
     int *output_buffer = (int*) ((env)->GetDirectBufferAddress(out));
     jboolean frame_copy;
-    int *image_buffer = (int*) (env)->GetIntArrayElements(imgData, &frame_copy);
+    jbyte* image_buffer = (env)->GetByteArrayElements(imgData, &frame_copy);
+    jboolean dirs_copy;
+    int* dirs = (env)->GetIntArrayElements(preDirs, &dirs_copy);
 
     int threshLow  = (int) lowerThreshold;
     int threshHigh = (int) higherThreshold;
@@ -22,20 +25,34 @@ Java_com_st0ck53y_testsudokuapplication_classes_CameraView_nativeCanny(
     int h = (int) height;
 
     int* temp_buff = (int*) malloc((width*height)*sizeof(int));
-
-    gaussianBlur(image_buffer, w, h, temp_buff);
+    int* temp_buf2 = (int*) malloc((width*height)*sizeof(int));
+    yFromYUV(image_buffer,w*h,temp_buf2);
+    (env)->ReleaseByteArrayElements(imgData, image_buffer, JNI_ABORT);
+    free(image_buffer);
+    gaussianBlur(temp_buf2, w, h, temp_buff);
+    free(temp_buf2);
     int *gradient = (int*) malloc((width*height)*sizeof(int));
     int *direction = (int*)malloc((width*height)*sizeof(int));
 
-    computeGradientAngles(temp_buff, w, h, gradient, direction);
+    computeGradientAngles(temp_buff, w, h, gradient, direction, dirs);
+    env->ReleaseIntArrayElements(preDirs,dirs,JNI_ABORT);
+    free(dirs);
     suppressNonMaxima(temp_buff, w, h, gradient, direction);
-    applyThreshold(temp_buff, w, h, threshLow, threshHigh, output_buffer);
+    applyThreshold(temp_buff, w, h, threshLow, threshHigh, temp_buff);
 
-    (env)->ReleaseIntArrayElements(imgData, image_buffer, JNI_ABORT);
-    free(image_buffer);
+    for (int i = 0; i < w*h; i++) {
+        output_buffer[i] = 0xff000000 | ((temp_buff[i] & 0xff) << 16) | ((temp_buff[i] & 0xff) << 8) | (temp_buff[i] & 0xff);
+    }
+
     free(temp_buff);
     free(gradient);
     free(direction);
+}
+
+void yFromYUV(jbyte* imgIn, int len, int* imgOut) {
+    for (int i = 0; i < len; i++) {
+        imgOut[i] = imgIn[i]&0xff;
+    }
 }
 
 void gaussianBlur(int* imgIn, int w, int h, int* output) {
@@ -74,15 +91,17 @@ void gaussianBlur(int* imgIn, int w, int h, int* output) {
     free(imgHor);
 }
 
-void computeGradientAngles(int* imgIn, int w, int h, int* gradient, int* direction) {
+void computeGradientAngles(int* imgIn, int w, int h, int* gradient, int* direction, int* preCompDir) {
     for (int y = 0; y < h - 1; y++) {
         int yOffs = y * w;
         int yPos  = yOffs + w;
         for (int x = 0; x < w - 1; x++) {
-            double xd = computeXDerivative(imgIn[yOffs + x], imgIn[yOffs + x + 1], imgIn[yPos + x], imgIn[yPos + x + 1]);
-            double yd = computeYDerivative(imgIn[yOffs + x], imgIn[yOffs + x + 1], imgIn[yPos + x], imgIn[yPos + x + 1]);
+            int xd = computeXDerivative(imgIn[yOffs + x], imgIn[yOffs + x + 1], imgIn[yPos + x], imgIn[yPos + x + 1]);
+            int yd = computeYDerivative(imgIn[yOffs + x], imgIn[yOffs + x + 1], imgIn[yPos + x], imgIn[yPos + x + 1]);
             gradient[yOffs+x] = (int) round(sqrt((xd*xd)+(yd*yd)));
-            direction[yOffs+x] =(int) round(toDegrees(atan(yd/xd)));
+            int yIdx = (yd & 0xff) | (yd<0?1<<8:0);
+            int xIdx = (xd & 0xff) | (xd<0?1<<8:0);
+            direction[yOffs+x] = preCompDir[yIdx<<9|xIdx&0x1ff];
         }
     }
 }
@@ -235,14 +254,10 @@ void applyThreshold(int* imgIn, int w, int h, int tL, int tH, int* out) {
     }
 }
 
-double computeXDerivative(int a, int b, int c, int d) {
+int computeXDerivative(int a, int b, int c, int d) {
     return ((b - a) + (d - c))/2;
 }
 
-double computeYDerivative(int a, int b, int c, int d) {
+int computeYDerivative(int a, int b, int c, int d) {
     return ((c - a) + (d - b))/2;
-}
-
-double toDegrees(double rad) {
-    return (rad * 180) / M_PI;
 }
