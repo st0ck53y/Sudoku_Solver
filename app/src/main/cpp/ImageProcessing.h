@@ -13,6 +13,7 @@
 #endif //SUDOKU_SOLVER_IMAGEPROCESSING_H
 
 void yFromYUV(jbyte* imgIn, int len, int* imgOut);
+void yNormFromYUV(jbyte* imgIn, int len, int* imgOut);
 void gaussianBlur(int* imgIn, int w, int h, int* output);
 void computeGradientAngles(int* imgIn, int w, int h, int* gradient, int* direction, int* preCompDir);
 void suppressNonMaxima(int* imgIn, int w, int h, int* gradient, int* direction);

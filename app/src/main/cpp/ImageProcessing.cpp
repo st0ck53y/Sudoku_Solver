@@ -31,8 +31,8 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
     free(image_buffer);
     gaussianBlur(temp_buf2, w, h, temp_buff);
     free(temp_buf2);
-    int *gradient = (int*) malloc((width*height)*sizeof(int));
-    int *direction = (int*)malloc((width*height)*sizeof(int));
+    int* gradient = (int*) malloc((width*height)*sizeof(int));
+    int* direction = (int*)malloc((width*height)*sizeof(int));
 
     computeGradientAngles(temp_buff, w, h, gradient, direction, dirs);
     env->ReleaseIntArrayElements(preDirs,dirs,JNI_ABORT);
@@ -53,6 +53,22 @@ void yFromYUV(jbyte* imgIn, int len, int* imgOut) {
     for (int i = 0; i < len; i++) {
         imgOut[i] = imgIn[i]&0xff;
     }
+}
+
+void yNormFromYUV(jbyte* imgIn, int len, int* imgOut) {
+    int* cnt = (int*)malloc(256*sizeof(int));
+    for (int i = 0; i < len; i++) {
+        imgOut[i] = imgIn[i]&0xff;
+        cnt[imgOut[i]]++;
+    }
+    for (int i = 0; i < 256; i++) {
+        cnt[i]=cnt[i]+cnt[i-1];
+    }
+    double var = 255 / len;
+    for (int i = 0; i < len; i++) {
+        imgOut[i] = (int)(cnt[imgOut[i]]*var);
+    }
+    free(cnt);
 }
 
 void gaussianBlur(int* imgIn, int w, int h, int* output) {
