@@ -30,6 +30,12 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
     (env)->ReleaseByteArrayElements(imgData, image_buffer, JNI_ABORT);
     free(image_buffer);
     gaussianBlur(temp_buf2, w, h, temp_buff);
+    normalize(temp_buff,w*h,temp_buff);
+    for (int i = 0; i < w*h; i++) {
+        output_buffer[i] = 0xff000000 | ((temp_buff[i] & 0xff) << 16) | ((temp_buff[i] & 0xff) << 8) | (temp_buff[i] & 0xff);
+    }
+    return;
+
     free(temp_buf2);
     int* gradient = (int*) malloc((width*height)*sizeof(int));
     int* direction = (int*)malloc((width*height)*sizeof(int));
@@ -38,8 +44,9 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
     env->ReleaseIntArrayElements(preDirs,dirs,JNI_ABORT);
     free(dirs);
     suppressNonMaxima(temp_buff, w, h, gradient, direction);
-    applyThreshold(temp_buff, w, h, threshLow, threshHigh, temp_buff);
-
+    int* thresholds = calcThresholds(gradient, w*h, threshLow, threshHigh);
+    applyThreshold(temp_buff, w, h, thresholds[0], thresholds[1], temp_buff);
+    free(thresholds);
     for (int i = 0; i < w*h; i++) {
         output_buffer[i] = 0xff000000 | ((temp_buff[i] & 0xff) << 16) | ((temp_buff[i] & 0xff) << 8) | (temp_buff[i] & 0xff);
     }
@@ -55,18 +62,17 @@ void yFromYUV(jbyte* imgIn, int len, int* imgOut) {
     }
 }
 
-void yNormFromYUV(jbyte* imgIn, int len, int* imgOut) {
-    int* cnt = (int*)malloc(256*sizeof(int));
+void normalize(int* imgIn, int len, int* imgOut) {
+    int* cnt = (int*)calloc(256,sizeof(int));
     for (int i = 0; i < len; i++) {
-        imgOut[i] = imgIn[i]&0xff;
-        cnt[imgOut[i]]++;
+        cnt[imgIn[i]]++;
     }
-    for (int i = 0; i < 256; i++) {
+    for (int i = 1; i < 256; i++) {
         cnt[i]=cnt[i]+cnt[i-1];
     }
-    double var = 255 / len;
+    double var = 255.0 / (double)len;
     for (int i = 0; i < len; i++) {
-        imgOut[i] = (int)(cnt[imgOut[i]]*var);
+        imgOut[i] = (int)(cnt[imgIn[i]]*var);
     }
     free(cnt);
 }
@@ -117,7 +123,7 @@ void computeGradientAngles(int* imgIn, int w, int h, int* gradient, int* directi
             gradient[yOffs+x] = (int) round(sqrt((xd*xd)+(yd*yd)));
             int yIdx = (yd & 0xff) | (yd<0?1<<8:0);
             int xIdx = (xd & 0xff) | (xd<0?1<<8:0);
-            direction[yOffs+x] = preCompDir[yIdx<<9|xIdx&0x1ff];
+            direction[yOffs+x] = preCompDir[yIdx<<9|(xIdx&0x1ff)];
         }
     }
 }
@@ -276,4 +282,47 @@ int computeXDerivative(int a, int b, int c, int d) {
 
 int computeYDerivative(int a, int b, int c, int d) {
     return ((c - a) + (d - b))/2;
+}
+
+int* calcThresholds(int* gradient, int len, int dL, int dH) {
+    int* t = (int*)malloc(2*sizeof(int));
+    t[0] = dL;
+    t[1] = dH;
+    return t;
+    int tot = 0;
+    int cnt = 0;
+    for (int i = 0; i < len; i++) {
+        tot += gradient[i];
+        if (gradient[i] > 0) cnt++;
+    }
+    if (cnt == 0) {
+        t[0] = dL;
+        t[1] = dH;
+        return t;
+    }
+    int avg = tot / cnt;
+    int totL = 0;
+    int lCnt = 0;
+    int totH = 0;
+    int hCnt = 0;
+    for (int i = 0; i < len; i++) {
+        if (gradient[i] < avg) {
+            totL += gradient[i];
+            lCnt++;
+        } else {
+            totH += gradient[i];
+            hCnt++;
+        }
+    }
+    if (lCnt == 0) {
+        t[0] = dL;
+    } else {
+        t[0] = (totL/lCnt);
+    }
+    if (hCnt == 0) {
+        t[1] = dH;
+    } else{
+        t[1] = (totH/hCnt);
+    }
+    return t;
 }
