@@ -3,6 +3,7 @@
 //
 
 #include "ImageProcessing.h"
+#include <stdlib.h>
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -24,17 +25,15 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
     int w = (int) width;
     int h = (int) height;
 
-    int* temp_buff = (int*) malloc((width*height)*sizeof(int));
-    int* temp_buf2 = (int*) malloc((width*height)*sizeof(int));
-    yFromYUV(image_buffer,w*h,temp_buf2);
+    int* image = (int*) malloc((w*h)*sizeof(int));
+    int* temp_buff = (int*) malloc((w*h)*sizeof(int));
+    int* temp_buf2 = (int*) malloc((w*h)*sizeof(int));
+    yFromYUV(image_buffer,w*h,image);
     (env)->ReleaseByteArrayElements(imgData, image_buffer, JNI_ABORT);
     free(image_buffer);
-    gaussianBlur(temp_buf2, w, h, temp_buff);
-    normalize(temp_buff,w*h,temp_buff);
-    for (int i = 0; i < w*h; i++) {
-        output_buffer[i] = 0xff000000 | ((temp_buff[i] & 0xff) << 16) | ((temp_buff[i] & 0xff) << 8) | (temp_buff[i] & 0xff);
-    }
-    return;
+    GaussianBlur::blur(image,w,h,7,2,temp_buff);
+    GaussianBlur::blur(temp_buff,w,h,7,2,temp_buf2);
+    normalize(temp_buf2,w*h,temp_buff);
 
     free(temp_buf2);
     int* gradient = (int*) malloc((width*height)*sizeof(int));
@@ -75,42 +74,6 @@ void normalize(int* imgIn, int len, int* imgOut) {
         imgOut[i] = (int)(cnt[imgIn[i]]*var);
     }
     free(cnt);
-}
-
-void gaussianBlur(int* imgIn, int w, int h, int* output) {
-    int arrSize = w*h;
-    for (int p = 0; p < w; p++) {
-        output[p] = imgIn[p];
-        output[(arrSize - p) - 1] = imgIn[(arrSize - p) - 1];
-    }
-
-    //blur horizontal
-    int* imgHor = new int[arrSize];
-    for (int y = 0; y < h; y++) { //can start at 0 because its doesnt go above current position
-        //moves the sides (untouched by blur) into final image
-        int yOffs = y * w;
-        output[yOffs] = imgIn[yOffs];
-        output[yOffs+(w-1)]=imgIn[yOffs+(w-1)];
-
-        for (int x = 1; x < w-1; x++) {
-            imgHor[yOffs+x] = (imgIn[yOffs + (x-1)] / 4) +
-                              (imgIn[yOffs + x] / 2) +
-                              (imgIn[yOffs + (x+1)] / 4);
-        }
-    }
-
-    //blur vertical
-    for (int y = 1; y < (h-1); y++) {
-        int yOffs = y * w;
-        int yNeg = yOffs - w;
-        int yPos = yOffs + w;
-        for (int x = 1; x < (w-1); x++) {
-            output[yOffs+x] = (imgHor[yNeg+x] / 4) +
-                              (imgHor[yOffs+x] / 2) +
-                              (imgHor[yPos+x] / 4);
-        }
-    }
-    free(imgHor);
 }
 
 void computeGradientAngles(int* imgIn, int w, int h, int* gradient, int* direction, int* preCompDir) {
