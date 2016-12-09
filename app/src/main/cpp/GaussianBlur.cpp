@@ -3,6 +3,7 @@
 
 const int GaussianBlur::gausd7s1[] = {1,10,40,64,166};
 const int GaussianBlur::gausd7s2[] = {71,131,189,213,995};
+const int GaussianBlur::gausd13s2[] = {1,5,14,33,60,88,99,501};
 
 void GaussianBlur::blur(int *imgIn, int w, int h, int diameter, int sigma, int *imgOut) {
     switch(diameter) {
@@ -28,7 +29,9 @@ void GaussianBlur::blur(int *imgIn, int w, int h, int diameter, int sigma, int *
             }
             blur7(imgIn,w,h,gaus,imgOut);
             break;
-
+        case 13:
+            blur13(imgIn,w,h,GaussianBlur::gausd13s2,imgOut);
+            break;
     }
 }
 
@@ -115,6 +118,63 @@ void GaussianBlur::blur7(int *imgIn, int w, int h, const int* gaus, int *imgOut)
                     (imgHor[yPos+x]*gaus[2]) +
                     (imgHor[yPps+x]*gaus[1]) +
                     (imgHor[yPpp+x]*gaus[0]))/gaus[4];
+        }
+    }
+    free(imgHor);
+}
+
+void GaussianBlur::blur13(int *imgIn, int w, int h, const int *gaus, int *imgOut) {
+    int arrSize = w*h;
+    for (int j = 0; j < 6; j++) {
+        for (int i = 0; i < w; i++) {
+            imgOut[j*w+i] = 0;
+            imgOut[(arrSize-(6*w))+(j*w+i)] = 0;
+        }
+    }
+
+    int* imgHor = new int[arrSize];
+    //blur horizontal
+    for (int y = 0; y < h; y++) {
+        int yOffs = y*w;
+        for (int x = 0; x < 6; x++) {
+            imgOut[yOffs+x] = 0;
+            imgOut[yOffs+(w-1)-x] = 0;
+        }
+        for (int x = 6; x < (w - 6); x++) {
+            imgHor[yOffs+x] = ((imgIn[yOffs + (x-6)]*gaus[0])+
+                    (imgIn[yOffs + (x-5)]*gaus[1])+
+                    (imgIn[yOffs + (x-4)]*gaus[2])+
+                    (imgIn[yOffs + (x-3)]*gaus[3])+
+                    (imgIn[yOffs + (x-2)]*gaus[4])+
+                    (imgIn[yOffs + (x-1)]*gaus[5])+
+                    (imgIn[yOffs + (x  )]*gaus[6])+
+                    (imgIn[yOffs + (x+1)]*gaus[5])+
+                    (imgIn[yOffs + (x+2)]*gaus[4])+
+                    (imgIn[yOffs + (x+3)]*gaus[3])+
+                    (imgIn[yOffs + (x+4)]*gaus[2])+
+                    (imgIn[yOffs + (x+5)]*gaus[1])+
+                    (imgIn[yOffs + (x+6)]*gaus[0]))/gaus[7];
+        }
+    }
+
+    //blur vertical
+    for (int y = 6; y < (h-6); y++) {
+        int yOffs = y * w;
+        for (int x = 6; x < (w-6); x++) {
+            imgOut[yOffs+x] = (
+                    (imgHor[(yOffs - (6*w))+x]*gaus[0])+
+                    (imgHor[(yOffs - (5*w))+x]*gaus[1])+
+                    (imgHor[(yOffs - (4*w))+x]*gaus[2])+
+                    (imgHor[(yOffs - (3*w))+x]*gaus[3])+
+                    (imgHor[(yOffs - (2*w))+x]*gaus[4])+
+                    (imgHor[(yOffs - (  w))+x]*gaus[5])+
+                    (imgHor[(yOffs        )+x]*gaus[6])+
+                    (imgHor[(yOffs + (  w))+x]*gaus[5])+
+                    (imgHor[(yOffs + (2*w))+x]*gaus[4])+
+                    (imgHor[(yOffs + (3*w))+x]*gaus[3])+
+                    (imgHor[(yOffs + (4*w))+x]*gaus[2])+
+                    (imgHor[(yOffs + (5*w))+x]*gaus[1])+
+                    (imgHor[(yOffs + (6*w))+x]*gaus[0]))/gaus[7];
         }
     }
     free(imgHor);

@@ -26,14 +26,17 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
     int h = (int) height;
 
     int* image = (int*) malloc((w*h)*sizeof(int));
-    int* temp_buff = (int*) malloc((w*h)*sizeof(int));
-    int* temp_buf2 = (int*) malloc((w*h)*sizeof(int));
+    int* temp_buff = (int*) calloc((size_t)(w*h),sizeof(int));
+    int* temp_buf2 = (int*) calloc((size_t)(w*h),sizeof(int));
     yFromYUV(image_buffer,w*h,image);
     (env)->ReleaseByteArrayElements(imgData, image_buffer, JNI_ABORT);
     free(image_buffer);
-    GaussianBlur::blur(image,w,h,7,2,temp_buff);
-    GaussianBlur::blur(temp_buff,w,h,7,2,temp_buf2);
-    normalize(temp_buf2,w*h,temp_buff);
+
+    normalize(image,w*h,temp_buff);
+    GaussianBlur::blur(temp_buff,w,h,13,2,temp_buf2);
+    GaussianBlur::blur(temp_buf2,w,h,13,2,temp_buff);
+    GaussianBlur::blur(temp_buff,w,h,13,2,temp_buf2);
+    GaussianBlur::blur(temp_buf2,w,h,13,2,temp_buff);
 
     free(temp_buf2);
     int* gradient = (int*) malloc((width*height)*sizeof(int));
@@ -43,7 +46,7 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
     env->ReleaseIntArrayElements(preDirs,dirs,JNI_ABORT);
     free(dirs);
     suppressNonMaxima(temp_buff, w, h, gradient, direction);
-    int* thresholds = calcThresholds(gradient, w*h, threshLow, threshHigh);
+    int* thresholds = calcThresholds(temp_buff, w*h, threshLow, threshHigh);
     applyThreshold(temp_buff, w, h, thresholds[0], thresholds[1], temp_buff);
     free(thresholds);
     for (int i = 0; i < w*h; i++) {
@@ -249,9 +252,9 @@ int computeYDerivative(int a, int b, int c, int d) {
 
 int* calcThresholds(int* gradient, int len, int dL, int dH) {
     int* t = (int*)malloc(2*sizeof(int));
-    t[0] = dL;
-    t[1] = dH;
-    return t;
+//    t[0] = dL;
+//    t[1] = dH;
+//    return t;
     int tot = 0;
     int cnt = 0;
     for (int i = 0; i < len; i++) {
@@ -271,7 +274,7 @@ int* calcThresholds(int* gradient, int len, int dL, int dH) {
     for (int i = 0; i < len; i++) {
         if (gradient[i] < avg) {
             totL += gradient[i];
-            lCnt++;
+            if (gradient[i] > 0) lCnt++;
         } else {
             totH += gradient[i];
             hCnt++;
@@ -280,12 +283,12 @@ int* calcThresholds(int* gradient, int len, int dL, int dH) {
     if (lCnt == 0) {
         t[0] = dL;
     } else {
-        t[0] = (totL/lCnt);
+        t[0] = (3*totL/lCnt);
     }
     if (hCnt == 0) {
         t[1] = dH;
     } else{
-        t[1] = (totH/hCnt);
+        t[1] = (3*totH/hCnt);
     }
     return t;
 }
