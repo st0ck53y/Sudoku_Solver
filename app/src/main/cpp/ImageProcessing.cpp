@@ -46,7 +46,7 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
     env->ReleaseIntArrayElements(preDirs,dirs,JNI_ABORT);
     free(dirs);
     suppressNonMaxima(temp_buff, w, h, gradient, direction);
-    int* thresholds = calcThresholds(temp_buff, w*h, threshLow, threshHigh);
+    int* thresholds = calcThresholds(gradient, w*h, threshLow, threshHigh);
     applyThreshold(temp_buff, w, h, thresholds[0], thresholds[1], temp_buff);
     free(thresholds);
     for (int i = 0; i < w*h; i++) {
@@ -138,11 +138,11 @@ void applyThreshold(int* imgIn, int w, int h, int tL, int tH, int* out) {
     int* higher = (int*) malloc(a* sizeof(int));
     bool* visited = (bool*) malloc(a* sizeof(bool));
     for (int i = 0; i < a; i++) {
-        if (imgIn[i] > tH) {
-            higher[i] = imgIn[i];
-            lower[i] = imgIn[i]; //put in lower too because the line crawling is simpler as a single variable to check
-        } else if (imgIn[i] > tL) {
+        if (imgIn[i] > tL) {
             lower[i] = imgIn[i];
+            if (imgIn[i] > tH) { //this way ensures its in lower and higher a little nicer
+                higher[i] = imgIn[i];
+            }
         } else {
             out[i] = 0;
         }
@@ -151,6 +151,7 @@ void applyThreshold(int* imgIn, int w, int h, int tL, int tH, int* out) {
     int cy,cx;
     bool np;
     //hysteresis
+    //TODO add a linked list array here to be returned (see culling below)
     for (int y = 1; y < h - 1; y++) {
         int yOffs = y*w;
         for (int x = 1; x < w - 1; x++) {
@@ -291,4 +292,39 @@ int* calcThresholds(int* gradient, int len, int dL, int dH) {
         t[1] = (3*totH/hCnt);
     }
     return t;
+}
+
+int* cullShortEdges(int* edges, int thresh) {
+    int edc = 0;
+    int longer = 0;
+    int curLenMax = 128;
+    int* longEdges = (int*)malloc(curLenMax*sizeof(int));
+    while (edges[edc]!=0) {
+        //traverse edges until reaching depth of threshold, then add to longEdges
+        if (longer == curLenMax) {
+            curLenMax*=2;
+            realloc(longEdges, (size_t)(curLenMax*sizeof(int)));
+        }
+        Line* root = (Line*) edges[edc];
+        Line* trav = root;
+        int curLen = 0;
+        bool lng = false;
+        if (trav != 0) {
+            do {
+                curLen++;
+                trav = trav->next;
+                if (curLen > thresh) {
+                    lng = true;
+                    break;
+                }
+            } while (trav->next != 0);
+        }
+        if (lng) {
+            longEdges[longer++] = edges[edc];
+        }
+        edc++;
+    }
+    realloc(longEdges, (size_t)((longer+1)*sizeof(int)));
+    longEdges[longer] = 0; //null terminate the array
+    return longEdges;
 }
