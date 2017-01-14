@@ -47,8 +47,10 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
     free(dirs);
     suppressNonMaxima(temp_buff, w, h, gradient, direction);
     int* thresholds = calcThresholds(gradient, w*h, threshLow, threshHigh);
-    applyThreshold(temp_buff, w, h, thresholds[0], thresholds[1], temp_buff);
+    void** edges = applyThreshold(temp_buff, w, h, thresholds[0], thresholds[1]);
     free(thresholds);
+    edges = cullShortEdges(edges, 50);
+    paintEdges(temp_buff, w*h, edges);
     for (int i = 0; i < w*h; i++) {
         output_buffer[i] = 0xff000000 | ((temp_buff[i] & 0xff) << 16) | ((temp_buff[i] & 0xff) << 8) | (temp_buff[i] & 0xff);
     }
@@ -132,7 +134,7 @@ void suppressNonMaxima(int* imgIn, int w, int h, int* gradient, int* direction) 
     }
 }
 
-void applyThreshold(int* imgIn, int w, int h, int tL, int tH, int* out) {
+void** applyThreshold(int* imgIn, int w, int h, int tL, int tH) {
     int a = w*h;
     int* lower = (int*) malloc(a*sizeof(int));
     int* higher = (int*) malloc(a* sizeof(int));
@@ -143,104 +145,32 @@ void applyThreshold(int* imgIn, int w, int h, int tL, int tH, int* out) {
             if (imgIn[i] > tH) { //this way ensures its in lower and higher a little nicer
                 higher[i] = imgIn[i];
             }
-        } else {
-            out[i] = 0;
         }
     }
+    int curEdgeMax = 512;
+    void** edges = (void**) malloc(curEdgeMax*sizeof(int));
+    int edgeNum = 0;
 
-    int cy,cx;
-    bool np;
     //hysteresis
-    //TODO add a linked list array here to be returned (see culling below)
     for (int y = 1; y < h - 1; y++) {
         int yOffs = y*w;
         for (int x = 1; x < w - 1; x++) {
             if (visited[yOffs+x]) continue; //skip pixel if already done
             if (higher[yOffs+x] > 0) {
-                cy = y;
-                cx = x;
-                do {
-                    np = false;
-                    if ((cy*w)+cx >= a || (cy*w)+cx < 0) break;
-                    out[(cy*w)+cx] = lower[(cy*w)+cx];
-                    visited[(cy*w)+cx] = true;
-                    int i = ((cy-1)*w) + (cx-1);
-                    if (i < a && i >= 0 && !visited[i]) {
-                        if (lower[i] > 0) {
-                            cy -= 1;
-                            cx -= 1;
-                            np = true;
-                            continue;
-                        }
-                    }
-                    i = ((cy-1)*w) + (cx);
-                    if (i < a && i >= 0 && !visited[i]) {
-                        if (lower[i] > 0) {
-                            cy -= 1;
-                            np = true;
-                            continue;
-                        }
-                    }
-                    i = ((cy-1)*w) + (cx+1);
-                    if (i < a && i >= 0 && !visited[i]) {
-                        if (lower[i] > 0) {
-                            cy -= 1;
-                            cx += 1;
-                            np = true;
-                            continue;
-                        }
-                    }
-                    i = (cy)*w + (cx-1);
-                    if (i < a && i >= 0 && !visited[i]) {
-                        if (lower[i] > 0) {
-                            cx-=1;
-                            np = true;
-                            continue;
-                        }
-                    }
-                    i = (cy)*w + (cx+1);
-                    if (i < a && i >= 0 && !visited[i]) {
-                        if (lower[i] > 0) {
-                            cx+=1;
-                            np = true;
-                            continue;
-                        }
-                    }
-                    i = (cy+1)*w + (cx-1);
-                    if (i < a && i >= 0 && !visited[i]) {
-                        if (lower[i] > 0) {
-                            cy+=1;
-                            cx-=1;
-                            np = true;
-                            continue;
-                        }
-                    }
-                    i = (cy+1)*w + (cx);
-                    if (i < a && i >= 0 && !visited[i]) {
-                        if (lower[i] > 0) {
-                            cy+=1;
-                            np = true;
-                            continue;
-                        }
-                    }
-                    i = (cy+1)*w + (cx+1);
-                    if (i < a && i >= 0 && !visited[i]) {
-                        if (lower[i] > 0) {
-                            cy+=1;
-                            cx+=1;
-                            np = true;
-                        }
-                    }
-                } while (np);
+                if (edgeNum == curEdgeMax) {
+                    curEdgeMax*=2;
+                    edges = (void**)realloc(edges,(size_t)(curEdgeMax*sizeof(int)));
+                }
+                edges[edgeNum++] = traverseLine(visited,lower,w,h,y,x);
             }
         }
     }
     free(lower);
     free(higher);
     free(visited);
-    for (int i = 0; i < a; i++) {
-        if (out[i] != 0) out[i] = 255;
-    }
+    edges = (void**)realloc(edges, (size_t)(edgeNum+1)*sizeof(int));
+    edges[edgeNum] = 0;//null terminate
+    return edges;
 }
 
 int computeXDerivative(int a, int b, int c, int d) {
@@ -284,47 +214,212 @@ int* calcThresholds(int* gradient, int len, int dL, int dH) {
     if (lCnt == 0) {
         t[0] = dL;
     } else {
-        t[0] = (3*totL/lCnt);
+        t[0] = (2*totL/lCnt);
     }
     if (hCnt == 0) {
         t[1] = dH;
     } else{
-        t[1] = (3*totH/hCnt);
+        t[1] = (2*totH/hCnt);
     }
     return t;
 }
 
-int* cullShortEdges(int* edges, int thresh) {
+void** cullShortEdges(void** edges, int thresh) {
     int edc = 0;
     int longer = 0;
     int curLenMax = 128;
-    int* longEdges = (int*)malloc(curLenMax*sizeof(int));
+    void** longEdges = (void**)malloc(curLenMax*sizeof(int));
     while (edges[edc]!=0) {
-        //traverse edges until reaching depth of threshold, then add to longEdges
         if (longer == curLenMax) {
             curLenMax*=2;
-            realloc(longEdges, (size_t)(curLenMax*sizeof(int)));
+            longEdges = (void**)realloc(longEdges, (size_t)(curLenMax*sizeof(int)));
         }
         Line* root = (Line*) edges[edc];
         Line* trav = root;
-        int curLen = 0;
-        bool lng = false;
-        if (trav != 0) {
-            do {
-                curLen++;
-                trav = trav->next;
-                if (curLen > thresh) {
-                    lng = true;
-                    break;
-                }
-            } while (trav->next != 0);
+        bool lng = true;
+        //traverse edges until reaching depth of threshold, then add to longEdges
+        for (int i = 0; i <= thresh; i++) {
+            if (trav->next == 0) {
+                lng = false;
+                break;
+            }
+            trav = trav->next;
         }
         if (lng) {
             longEdges[longer++] = edges[edc];
         }
         edc++;
     }
-    realloc(longEdges, (size_t)((longer+1)*sizeof(int)));
+    longEdges = (void**)realloc(longEdges, (size_t)((longer+1)*sizeof(int)));
     longEdges[longer] = 0; //null terminate the array
     return longEdges;
+}
+
+//returns a line, modifies the visited array
+void* traverseLine(bool* visited, int* lower, int w, int h, int y, int x) {
+    int imgLen = w*h;
+    Line* root = new Line;
+    root->p = (y*w)+x;
+    Line* cur = root;
+
+    bool chk;
+    int cy,cx,cn;
+    cy=y;
+    cx=x;
+    do {
+        chk = false;
+        visited[(cy*w)+cx]=true;
+        cn = ((cy-1)*w)+(cx-1);
+        if (walked(visited,lower,imgLen,cn,cy,cx,-1,-1)) {
+            appendToLine(cur,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,-1,0)) {
+            appendToLine(cur,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,-1,1)) {
+            appendToLine(cur,cn);
+            chk = true;
+            continue;
+        }
+        cn = (cy*w)+(cx-1);
+        if (walked(visited,lower,imgLen,cn,cy,cx,0,-1)) {
+            appendToLine(cur,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,0,0)) {
+            appendToLine(cur,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,0,1)) {
+            appendToLine(cur,cn);
+            chk = true;
+            continue;
+        }
+        cn = ((cy+1)*w)+(cx-1);
+        if (walked(visited,lower,imgLen,cn,cy,cx,1,-1)) {
+            appendToLine(cur,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,1,0)) {
+            appendToLine(cur,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,1,1)) {
+            appendToLine(cur,cn);
+            chk = true;
+        }
+    } while(chk);
+    cur->next = 0;
+    cy=y;
+    cx=x;
+    do {
+        chk = false;
+        visited[(cy*w)+cx]=true;
+        cn = ((cy-1)*w)+(cx-1);
+        if (walked(visited,lower,imgLen,cn,cy,cx,-1,-1)) {
+            prependToLine(root,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,-1,0)) {
+            prependToLine(root,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,-1,1)) {
+            prependToLine(root,cn);
+            chk = true;
+            continue;
+        }
+        cn = (cy*w)+(cx-1);
+        if (walked(visited,lower,imgLen,cn,cy,cx,0,-1)) {
+            prependToLine(root,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,0,0)) {
+            prependToLine(root,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,0,1)) {
+            prependToLine(root,cn);
+            chk = true;
+            continue;
+        }
+        cn = ((cy+1)*w)+(cx-1);
+        if (walked(visited,lower,imgLen,cn,cy,cx,1,-1)) {
+            prependToLine(root,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,1,0)) {
+            prependToLine(root,cn);
+            chk = true;
+            continue;
+        }
+        cn++;
+        if (walked(visited,lower,imgLen,cn,cy,cx,1,1)) {
+            prependToLine(root,cn);
+            chk = true;
+        }
+    } while(chk);
+    return (void*) root;
+}
+
+bool walked(bool* visited, int* lower, int imgLen, int cn, int& cy, int& cx, int yc, int xc) {
+    if (cn < imgLen && cn >= 0 && !visited[cn]){
+        if (lower[cn] > 0) {
+            cy+=yc;
+            cx+=xc;
+            return true;
+        }
+    }
+    return false;
+}
+
+void appendToLine(Line*& cur, int val) {
+    cur->next = new Line;
+    cur = cur->next;
+    cur->p = val;
+}
+
+void prependToLine(Line*& root, int val) {
+    Line* nRoot = new Line;
+    nRoot->p = val;
+    nRoot->next = root;
+    root = nRoot;
+}
+
+void paintEdges(int* img, int imgLen, void** edges) {
+    for (int i = 0; i < imgLen; i++) {
+        img[i] = 0;
+    }
+    int edc = 0;
+    while (edges[edc]!=0) {
+        Line* edge = (Line*) edges[edc++];
+        while (edge->next != 0) {
+            img[edge->p] = 255;
+            edge = edge->next;
+        }
+    }
 }
