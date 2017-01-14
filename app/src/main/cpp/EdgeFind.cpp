@@ -359,3 +359,11 @@ void EdgeFind::paintEdges(int* img, void** edges) {
         }
     }
 }
+
+int* EdgeFind::getImageGradients() {
+    return gradient;
+}
+
+int* EdgeFind::getImageDirections() {
+    return direction;
+}
