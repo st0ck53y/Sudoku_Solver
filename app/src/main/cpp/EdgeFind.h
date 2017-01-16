@@ -18,12 +18,15 @@ public:
     ~EdgeFind();
     void computeGradientAngles(int* imgIn, int* preCompDir);
     void suppressNonMaxima(int* imgIn);
-    void** applyThreshold(int* imgIn, int tL, int tH);
+    void applyThreshold(int* imgIn, int tL, int tH);
     int* calcThresholds(int dL, int dH);
+    void cullShortEdges(int thresh);
     void** cullShortEdges(void** edges, int thresh);
+    void paintEdges(int* img);
     void paintEdges(int* img, void** edges);
     int* getImageGradients();
     int* getImageDirections();
+    void** getImageEdges();
 private:
     int computeXDerivative(int a, int b, int c, int d);
     int computeYDerivative(int a, int b, int c, int d);
@@ -35,8 +38,9 @@ private:
 private:
     int w;
     int h;
-    int* gradient;
-    int* direction;
+    int* m_gradient;
+    int* m_direction;
+    void** m_edges;
 };
 
 #endif //SUDOKU_SOLVER_EDGE_H

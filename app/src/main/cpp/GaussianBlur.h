@@ -4,16 +4,23 @@
 
 class GaussianBlur {
 public:
-    static void blur(int* imgIn, int w, int h, int diameter, int sigma, int* imgOut);
-
+    GaussianBlur(int w, int h);
+    ~GaussianBlur();
+    void blur(int* img, int diameter, int sigma);
+    void blurReduce(int** img, int diameter, int sigma);
+    int getImageWidth();
+    int getImageHeight();
 private:
-    static void blur13(int* imgIn, int w, int h, const int* gaus, int* imgOut);
-    static void blur7(int* imgIn, int w, int h, const int* gaus, int* imgOut);
-    static void blur3s0(int* imgIn, int w, int h, int* imgOut);
-
+    void blur13(int* img, const int* gaus);
+    void blur7(int* img, const int* gaus);
+    void blur3s0(int* img);
+    void blurReduce13(int** img, const int* gaus);
+private:
     static const int gausd7s1[];
     static const int gausd7s2[];
     static const int gausd13s2[];
+    int m_w;
+    int m_h;
 };
 
 

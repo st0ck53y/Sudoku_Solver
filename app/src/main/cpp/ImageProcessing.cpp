@@ -24,21 +24,24 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
     int threshHigh = (int) higherThreshold;
     int w = (int) width;
     int h = (int) height;
+    int buffSize = w*h;
 
-    int* image = (int*) malloc((w*h)*sizeof(int));
-    int* temp_buff = (int*) calloc((size_t)(w*h),sizeof(int));
-    int* temp_buf2 = (int*) calloc((size_t)(w*h),sizeof(int));
-    yFromYUV(image_buffer,w*h,image);
+    int* image = (int*) malloc((buffSize)*sizeof(int));
+    int* temp_buff = (int*) calloc((size_t)(buffSize),sizeof(int));
+    yFromYUV(image_buffer,buffSize,image);
     (env)->ReleaseByteArrayElements(imgData, image_buffer, JNI_ABORT);
     free(image_buffer);
 
-    normalize(image,w*h,temp_buff);
-    GaussianBlur::blur(temp_buff,w,h,13,2,temp_buf2);
-    GaussianBlur::blur(temp_buf2,w,h,13,2,temp_buff);
-    GaussianBlur::blur(temp_buff,w,h,13,2,temp_buf2);
-    GaussianBlur::blur(temp_buf2,w,h,13,2,temp_buff);
-
-    free(temp_buf2);
+    normalize(image,buffSize,temp_buff);
+    GaussianBlur* blur = new GaussianBlur(w,h);
+    blur->blur(temp_buff,13,2);
+//    blur->blurReduce(&temp_buff,13,2);
+    blur->blur(temp_buff,13,2);
+    blur->blur(temp_buff,13,2);
+    blur->blur(temp_buff,7,2);
+    w = blur->getImageWidth();
+    h = blur->getImageHeight();
+    delete blur;
 
     EdgeFind* edgeFind = new EdgeFind(w, h);
     edgeFind->computeGradientAngles(temp_buff, dirs);
@@ -48,13 +51,15 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
 
     edgeFind->suppressNonMaxima(temp_buff);
     int* thresholds = edgeFind->calcThresholds(threshLow, threshHigh);
-    void** edges = edgeFind->applyThreshold(temp_buff, thresholds[0], thresholds[1]);
+    edgeFind->applyThreshold(temp_buff, thresholds[0], thresholds[1]);
     free(thresholds);
-    edges = edgeFind->cullShortEdges(edges, 50);
-    edgeFind->paintEdges(temp_buff, edges);
+    edgeFind->cullShortEdges(5);
+    edgeFind->paintEdges(temp_buff);
     for (int i = 0; i < w*h; i++) {
         output_buffer[i] = 0xff000000 | ((temp_buff[i] & 0xff) << 16) | ((temp_buff[i] & 0xff) << 8) | (temp_buff[i] & 0xff);
     }
+    output_buffer[buffSize - 2] = w;
+    output_buffer[buffSize - 1] = h;
 
     free(temp_buff);
     delete edgeFind;
