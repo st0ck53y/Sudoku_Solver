@@ -12,31 +12,36 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import com.st0ck53y.testsudokuapplication.activity.ScanGrid;
+import com.st0ck53y.testsudokuapplication.helper.NativeHelper;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.util.List;
 
 public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Camera.PreviewCallback {
     private boolean processing = false;
     private int imageFormat;
 
+    Matrix matrix;
+    private Bitmap scaled = null;
+    private Bitmap rotate = null;
     private Bitmap bitmap = null;
+    IntBuffer out;
     private int[] pixels = null;
     private byte[] framedat = null;
 
     private SurfaceHolder sHolder;
     private Camera camera;
 
-
     Handler handler = new Handler(Looper.getMainLooper());
 
     static int PreviewSizeWidth;
     static int PreviewSizeHeight;
 
-
     public CameraView(Context context, Camera c) {
         super(context);
-
         camera = c;
         camera.setDisplayOrientation(90);
         Camera.Parameters cPar = c.getParameters();
@@ -51,19 +56,28 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         PreviewSizeWidth = sizes.get(0).width;
         PreviewSizeHeight = sizes.get(0).height;
 
+        matrix = new Matrix();
+        matrix.postRotate(90);
+
         bitmap = Bitmap.createBitmap(PreviewSizeWidth, PreviewSizeHeight, Bitmap.Config.ARGB_8888);
         pixels = new int[PreviewSizeWidth * PreviewSizeHeight];
+        //must specify endianness.... native is big endian, this is not :'(
+        this.out = ByteBuffer.allocateDirect(PreviewSizeWidth*PreviewSizeHeight*4).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer();
     }
 
     int frame = 0;
     @Override
     public void onPreviewFrame(byte[] arg0, Camera cam) {
-        if (frame < 90) {
+        if (frame < 60) {
             frame++;
             return;
         }
         if (imageFormat == ImageFormat.NV21) {
             if (!processing) {
+                processing = true;
+                ScanGrid.iv.setImageBitmap(rotate);
+                bitmap = Bitmap.createBitmap(PreviewSizeWidth, PreviewSizeHeight, Bitmap.Config.ARGB_8888);
+                pixels = new int[PreviewSizeWidth * PreviewSizeHeight];
                 framedat = arg0;
                 handler.post(processFrame);
             }
@@ -103,27 +117,6 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         }
     }
 
-    private int[] yFromYUV() {
-        int[] dat = new int[PreviewSizeWidth * PreviewSizeHeight];
-        int datLow[] = new int[2];
-        int datHigh[] = new int[2];
-        for (int i = 0; i < dat.length; i++) {
-            dat[i] = framedat[i]&0xff; //GODDANGIT!! its not unsigned!!
-//            dat[i] += 128; // this seems to screw it up, even though its the same?
-            if (framedat[i] < datLow[0]) datLow[0] = framedat[i];
-            if (framedat[i] >datHigh[0]) datHigh[0]= framedat[i];
-            if (     dat[i] < datLow[1]) datLow[1] =      dat[i];
-            if (     dat[i] >datHigh[1]) datHigh[1]=      dat[i];
-        }
-        return dat;
-    }
-
-    private void lumToRGB(int[] lum) {
-        for (int i = 0; i < lum.length; i++) {
-            pixels[i] = 0xff000000 | ((lum[i] & 0xff) << 16) | ((lum[i] & 0xff) << 8) | (lum[i] & 0xff);
-        }
-    }
-
     static long totalTime = 0;
     static long thisTime = 0;
     static long times = 0;
@@ -132,31 +125,29 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
         @Override
         public void run() {
             processing = true;
-//            YUV_NV21_TO_RGB(pixels,framedat,PreviewSizeWidth,PreviewSizeHeight);
-            int[] pixLum = yFromYUV();
             long ts = System.nanoTime();
-            Canny edge = new Canny(pixLum,PreviewSizeWidth,PreviewSizeHeight,3,17,35);
-            Log.i("prog","Canny created");
-            edge.computeGradientAngles();
-            Log.i("prog","gradients computed");
-            edge.suppressNonMaxima();
-            Log.i("prog","suppressed non maxima");
-            edge.applyThresholds();
+            int w = PreviewSizeWidth;
+            int h = PreviewSizeHeight;
+
+            NativeHelper.nativeCanny(framedat,w,h,NativeHelper.tanned,15,35,out); //currently only has 3x3 blur in native
+            out.position(pixels.length - 2);
+            int imgWidth = out.get();
+            int imgHeight = out.get();
+            out.rewind().position(0);
+            pixels = new int[imgWidth * imgHeight];
+            out.get(pixels).rewind();
+            out.position(0);
+
             long te = System.nanoTime();
             thisTime = (te-ts)/1000000;
             totalTime+=thisTime;
             times++;
             Log.i("avg times", ""+totalTime/times);
-            pixLum = edge.getImage();
-            lumToRGB(pixLum);
-            bitmap.setPixels(pixels, 0, PreviewSizeWidth, 0, 0, PreviewSizeWidth, PreviewSizeHeight);
+            bitmap.setPixels(pixels, 0, imgWidth, 0, 0, imgWidth, imgHeight);
 
-            Matrix matrix = new Matrix();
-            matrix.postRotate(90);
-            Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap,PreviewSizeWidth,PreviewSizeHeight,true);
-            Bitmap rotatedBitmap = Bitmap.createBitmap(scaledBitmap , 0, 0, scaledBitmap .getWidth(), scaledBitmap .getHeight(), matrix, true);
+            scaled = Bitmap.createScaledBitmap(bitmap,PreviewSizeWidth,PreviewSizeHeight,true);
+            rotate = Bitmap.createBitmap(scaled , 0, 0, scaled.getWidth(), scaled.getHeight(), matrix, true);
 
-            ScanGrid.iv.setImageBitmap(rotatedBitmap);
             processing = false;
         }
     };
@@ -171,6 +162,8 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             camera.startPreview();
         } catch (IOException ex) {
             Log.w("Camera","Preview could not be displayed, surfaceCreated Err");
+        } catch (Exception e) {
+            //
         }
 
     }
@@ -190,12 +183,18 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             camera.startPreview();
         }catch (IOException ex) {
             Log.w("Camera","Preview could not be displayed, surfaceChanged Err");
+        } catch (Exception e) {
+            //
         }
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
-        camera.stopPreview();
-        camera.release();
+        try {
+            camera.stopPreview();
+            camera.release();
+        } catch (Exception e) {
+            //
+        }
     }
 }

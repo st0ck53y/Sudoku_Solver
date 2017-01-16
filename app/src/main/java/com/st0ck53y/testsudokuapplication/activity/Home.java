@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.Button;
 
 import com.st0ck53y.testsudokuapplication.R;
+import com.st0ck53y.testsudokuapplication.helper.NativeHelper;
 
 public class Home extends AppCompatActivity {
 
@@ -49,6 +50,12 @@ public class Home extends AppCompatActivity {
                 }
             }
         });
+        Thread t = new Thread() {
+            public void run() {
+                NativeHelper.init();
+            }
+        };
+        t.start();
     }
 
     @Override
