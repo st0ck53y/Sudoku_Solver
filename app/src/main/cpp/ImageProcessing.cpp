@@ -38,9 +38,9 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
 //    blur->blurReduce(&temp_buff,13,2);
     blur->blur(temp_buff,13,2);
     blur->blur(temp_buff,13,2);
-    blur->blur(temp_buff,7,2);
-    w = blur->getImageWidth();
-    h = blur->getImageHeight();
+//    blur->blur(temp_buff,7,2);
+//    w = blur->getImageWidth();
+//    h = blur->getImageHeight();
     delete blur;
 
     EdgeFind* edgeFind = new EdgeFind(w, h);
@@ -49,17 +49,33 @@ Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_nativeCanny(
     env->ReleaseIntArrayElements(preDirs,dirs,JNI_ABORT);
     free(dirs);
 
-    edgeFind->suppressNonMaxima(temp_buff);
-    int* thresholds = edgeFind->calcThresholds(threshLow, threshHigh);
-    edgeFind->applyThreshold(temp_buff, thresholds[0], thresholds[1]);
-    free(thresholds);
-    edgeFind->cullShortEdges(5);
+    edgeFind->simplifyDirections();
+    edgeFind->normalizeGradients();
+    edgeFind->thresholdGradients();
+    edgeFind->findAnchors();
+    edgeFind->joinAnchors();
+
+    //edgeFind->cullShortEdges(10); maybe?
+
     edgeFind->paintEdges(temp_buff);
+
+    int* debugImg = (int*) malloc(w*h*sizeof(int));
+    int* g = edgeFind->getImageGradients();
     for (int i = 0; i < w*h; i++) {
-        output_buffer[i] = 0xff000000 | ((temp_buff[i] & 0xff) << 16) | ((temp_buff[i] & 0xff) << 8) | (temp_buff[i] & 0xff);
+        debugImg[i] = 0xff000000 | ((g[i]&0xff)/8);
     }
-    output_buffer[buffSize - 2] = w;
-    output_buffer[buffSize - 1] = h;
+
+
+    for (int i = 0; i < w*h; i++) {
+        output_buffer[i] = debugImg[i] |
+                (0xff000000 | ((temp_buff[i] & 0xff) << 16) | ((temp_buff[i] & 0xff) << 8) | (temp_buff[i] & 0xff));
+    }
+
+    int* a = edgeFind->getAnchors();
+    int c = 0;
+    while (a[c] != 0) {
+        output_buffer[a[c++]] = 0xffff6666;
+    }
 
     free(temp_buff);
     delete edgeFind;

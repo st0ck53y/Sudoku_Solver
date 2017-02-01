@@ -17,30 +17,49 @@ public:
     EdgeFind(int imageWidth, int imageHeight);
     ~EdgeFind();
     void computeGradientAngles(int* imgIn, int* preCompDir);
-    void suppressNonMaxima(int* imgIn);
-    void applyThreshold(int* imgIn, int tL, int tH);
-    int* calcThresholds(int dL, int dH);
+
+    void simplifyDirections();
+    void normalizeGradients();
+    void thresholdGradients();
+    void thresholdGradients(int thresh);
+    void findAnchors();
+    void findAnchors(int thresh, int interval);
+    void joinAnchors();
+
     void cullShortEdges(int thresh);
     void** cullShortEdges(void** edges, int thresh);
+
     void paintEdges(int* img);
     void paintEdges(int* img, void** edges);
     int* getImageGradients();
     int* getImageDirections();
+    int* getAnchors();
     void** getImageEdges();
 private:
     int computeXDerivative(int a, int b, int c, int d);
     int computeYDerivative(int a, int b, int c, int d);
-    void* traverseLine(bool* visited, int* lower, int y, int x);
-    bool walked(bool* visited, int* lower, int imgLen, int cn, int& cy, int& cx, int yc, int xc);
-    void appendToLine(Line*& cur, int val);
+    void insertToLine(Line*& cur, int val);
     void prependToLine(Line*& root, int val);
+
+    void mergeLines(Line*& ro, Line* rt);
+    void walkLine(int cPos, bool left, bool up, Line* line);
+    int goLeft(int x, int y, bool& up, Line* line);
+    int goRight(int x, int y, bool& up, Line* line);
+    int goUp(int x, int y, bool& left, Line* line);
+    int goDown(int x, int y, bool& left, Line* line);
 
 private:
     int w;
     int h;
     int* m_gradient;
     int* m_direction;
+    bool* m_simpDirs; //l/r==false,u/d==true
+    int* m_anchors;
+    int m_ancMax;
     void** m_edges;
+    int m_edgeMax;
+
+    bool* m_visited;
 };
 
 #endif //SUDOKU_SOLVER_EDGE_H

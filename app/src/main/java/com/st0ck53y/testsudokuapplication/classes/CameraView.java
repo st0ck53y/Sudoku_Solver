@@ -76,8 +76,6 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             if (!processing) {
                 processing = true;
                 ScanGrid.iv.setImageBitmap(rotate);
-                bitmap = Bitmap.createBitmap(PreviewSizeWidth, PreviewSizeHeight, Bitmap.Config.ARGB_8888);
-                pixels = new int[PreviewSizeWidth * PreviewSizeHeight];
                 framedat = arg0;
                 handler.post(processFrame);
             }
@@ -129,12 +127,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             int w = PreviewSizeWidth;
             int h = PreviewSizeHeight;
 
-            NativeHelper.nativeCanny(framedat,w,h,NativeHelper.tanned,15,35,out); //currently only has 3x3 blur in native
-            out.position(pixels.length - 2);
-            int imgWidth = out.get();
-            int imgHeight = out.get();
-            out.rewind().position(0);
-            pixels = new int[imgWidth * imgHeight];
+            NativeHelper.nativeCanny(framedat,w,h,NativeHelper.tanned,15,35,out);
             out.get(pixels).rewind();
             out.position(0);
 
@@ -143,7 +136,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,Ca
             totalTime+=thisTime;
             times++;
             Log.i("avg times", ""+totalTime/times);
-            bitmap.setPixels(pixels, 0, imgWidth, 0, 0, imgWidth, imgHeight);
+            bitmap.setPixels(pixels, 0, w, 0, 0, w, h);
 
             scaled = Bitmap.createScaledBitmap(bitmap,PreviewSizeWidth,PreviewSizeHeight,true);
             rotate = Bitmap.createBitmap(scaled , 0, 0, scaled.getWidth(), scaled.getHeight(), matrix, true);

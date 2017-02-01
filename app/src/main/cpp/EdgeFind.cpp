@@ -8,14 +8,24 @@
 EdgeFind::EdgeFind(int imageWidth, int imageHeight) {
     w = imageWidth;
     h = imageHeight;
+    m_ancMax = 256;
+    m_edgeMax = 256;
+    m_edges = (void**) malloc(m_edgeMax*sizeof(int));
     m_gradient = (int*) malloc((w*h)*sizeof(int));
     m_direction = (int*) malloc((w*h)*sizeof(int));
+    m_simpDirs = (bool*) malloc((w*h)*sizeof(bool));
+    m_anchors = (int*) malloc(m_ancMax*sizeof(int));
+    m_visited = (bool*) calloc((size_t)(w*h),sizeof(bool));
 }
 
 EdgeFind::~EdgeFind() {
     free(m_edges);
     free(m_gradient);
     free(m_direction);
+    free(m_simpDirs);
+    free(m_anchors);
+
+    free(m_visited);
 }
 
 void EdgeFind::computeGradientAngles(int* imgIn, int* preCompDir) {
@@ -33,81 +43,267 @@ void EdgeFind::computeGradientAngles(int* imgIn, int* preCompDir) {
     }
 }
 
-void EdgeFind::suppressNonMaxima(int* imgIn) {
-    for (int y = 0; y < h - 1; y++) {
-        int yOffs = y * w;
-        for (int x = 0; x < w -1; x++) {
-            if (y==0 || x==0) {
-                imgIn[yOffs+x] = 0;
-                continue;
+void EdgeFind::simplifyDirections() {
+    for (int i = 0; i < w*h; i++) {
+        m_simpDirs[i] = !(m_direction[i] < 45 || m_direction[i] > 135);
+    }
+}
+
+void EdgeFind::normalizeGradients() {
+    int* cnt = (int*)calloc(256,sizeof(int));
+    for (int i = 0; i < w*h; i++) {
+        cnt[m_gradient[i]]++;
+    }
+    for (int i = 1; i < 256; i++) {
+        cnt[i]=cnt[i]+cnt[i-1];
+    }
+    cnt[0] = 0; //0 stays as 0
+    double var = 255.0 / ((double)w*h);
+    for (int i = 0; i < w*h; i++) {
+        m_gradient[i] = (int)(cnt[m_gradient[i]]*var);
+    }
+    free(cnt);
+}
+
+void EdgeFind::thresholdGradients() {
+    u_int64_t t = 0;
+    int cnt = 0;
+    for (int i = 0; i < w*h; i++) {
+        if (m_gradient[i] != 0)
+            t += m_gradient[i];
+        else
+            cnt++;
+    }
+    int thresh = (int) t / ((w*h)-cnt);
+    thresholdGradients(thresh);
+}
+
+void EdgeFind::thresholdGradients(int thresh) {
+    for (int i = 0; i < w*h; i++) {
+        if (m_gradient[i] < thresh) {
+            m_gradient[i] = 0;
+        }
+    }
+}
+
+void EdgeFind::findAnchors() {
+    findAnchors(16,4);
+}
+
+void EdgeFind::findAnchors(int thresh, int interval) {
+    int curAncMax = m_ancMax;
+    int curAnc = 0;
+    for (int y = 2; y < h-2; y+=interval) {
+        int yOffs = y*w;
+        for (int x = 2; x < w-2; x+=interval) {
+            if (m_simpDirs[yOffs+x]) {
+                //up down
+                if (m_gradient[yOffs+x]-m_gradient[(yOffs-w)+x] > thresh
+                    && m_gradient[yOffs+x]-m_gradient[(yOffs-(2*w))+x] > thresh
+                    && m_gradient[yOffs+x]-m_gradient[(yOffs+(2*w))+x] > thresh
+                    && m_gradient[yOffs+x]-m_gradient[(yOffs+w)+x] > thresh) {
+                    m_anchors[curAnc++] = yOffs+x;
+                }
+            } else {
+                //left right
+                if (m_gradient[yOffs+x]-m_gradient[yOffs+(x-1)] > thresh
+                    && m_gradient[yOffs+x]-m_gradient[yOffs+(x-2)] > thresh
+                    && m_gradient[yOffs+x]-m_gradient[yOffs+(x+2)] > thresh
+                    && m_gradient[yOffs+x]-m_gradient[yOffs+(x+1)] > thresh) {
+                    m_anchors[curAnc++] = yOffs+x;
+                }
             }
-            int dir = m_direction[yOffs+x];
-            if (dir < -67 || dir > 67) { //Horizontal
-                if (m_gradient[yOffs+x] < m_gradient[yOffs+x+w] || m_gradient[yOffs+x] < m_gradient[yOffs+x-w]) {
-                    imgIn[yOffs+x] = 0;
-                } else {
-                    imgIn[yOffs+x] = m_gradient[yOffs+x];
-                }
-            } else if (dir > -23 && dir < 23) { //Vertical
-                if (m_gradient[yOffs+x] < m_gradient[yOffs+x+1] || m_gradient[yOffs+x] < m_gradient[yOffs+x-1]) {
-                    imgIn[yOffs+x] = 0;
-                } else {
-                    imgIn[yOffs+x] = m_gradient[yOffs+x];
-                }
-            } else if (dir < -22) { //down right - up left
-                if (m_gradient[yOffs+x] < m_gradient[yOffs+x+(w-1)] || m_gradient[yOffs+x] < m_gradient[yOffs+x-(w-1)]) {
-                    imgIn[yOffs+x] = 0;
-                } else {
-                    imgIn[yOffs+x] = m_gradient[yOffs+x];
-                }
-            } else { //up right - down left
-                if (m_gradient[yOffs+x] < m_gradient[yOffs+x+(w+1)] || m_gradient[yOffs+x] < m_gradient[yOffs+x-(w+1)]) {
-                    imgIn[yOffs+x] = 0;
-                } else {
-                    imgIn[yOffs+x] = m_gradient[yOffs+x];
-                }
+            if (curAnc == curAncMax) {
+                curAncMax*=2;
+                m_anchors = (int*) realloc(m_anchors, curAncMax*sizeof(int));
+            }
+        }
+    }
+    m_anchors = (int*) realloc(m_anchors, (curAnc+1)*sizeof(int));
+    m_anchors[curAnc] = 0; //null terminate
+}
+
+void EdgeFind::joinAnchors() {
+    int edgeMax = m_edgeMax;
+    int curEdge = 0;
+
+    bool left;
+    bool up;
+    int cAnc = 0;
+    while(m_anchors[cAnc]!= 0) {
+        int pos = m_anchors[cAnc];
+        if (!m_visited[pos]) {
+            left = true;
+            up = false;
+            Line* dl = new Line();
+            walkLine(pos,left,up,dl);
+            left = false;
+            up = true;
+            m_visited[pos]=false;
+            Line* ur = new Line();
+            walkLine(pos,left,up,ur);
+            mergeLines(dl,ur);
+            m_edges[curEdge++] = (void*)dl;
+        }
+        cAnc++;
+        if (curEdge == edgeMax) {
+            edgeMax*=2;
+            m_edges = (void**) realloc(m_edges,(size_t)(edgeMax*sizeof(int)));
+        }
+    }
+    m_edges = (void**) realloc(m_edges,(size_t)((curEdge+1)*sizeof(int)));
+    m_edges[curEdge] = 0;
+}
+
+void EdgeFind::mergeLines(Line *&ro, Line *rt) {
+    if (rt == 0) return;
+    if (ro == 0) {
+        ro = rt;
+        return;
+    }
+    if (ro->p != rt->p) {
+        //TODO not sure what should happen here?
+    }
+    while(rt->next != 0) {
+        prependToLine(ro, rt->p);
+        rt = rt->next;
+    }
+}
+
+void EdgeFind::walkLine(int pos, bool left, bool up, Line* line) {
+    while(pos!=0) {
+        int x = pos % w;
+        int y = pos / w;
+        if (m_simpDirs[pos]){
+            if (up) {
+                pos = goUp(x,y,left,line);
+            } else {
+                pos = goDown(x,y,left,line);
+            }
+        } else {
+            if (left) {
+                pos = goLeft(x,y,up,line);
+            } else {
+                pos = goRight(x,y,up,line);
             }
         }
     }
 }
 
-void EdgeFind::applyThreshold(int* imgIn, int tL, int tH) {
-    int a = w * h;
-    int* lower = (int*) malloc(a*sizeof(int));
-    int* higher = (int*) malloc(a* sizeof(int));
-    bool* visited = (bool*) malloc(a* sizeof(bool));
-    for (int i = 0; i < a; i++) {
-        if (imgIn[i] > tL) {
-            lower[i] = imgIn[i];
-            if (imgIn[i] > tH) { //this way ensures its in lower and higher a little nicer
-                higher[i] = imgIn[i];
-            }
+int EdgeFind::goLeft(int x, int y, bool& up, Line* line) {
+    int ly = y;
+    int pos = y*w + x;
+    if (m_visited[pos]) return 0;
+    while(m_gradient[pos]>0&&!m_simpDirs[pos]&&!m_visited[pos]) {
+        ly = y;
+        pos = (y*w) + x;
+        m_visited[pos] = true;
+        line->p = pos;
+        line->next = new Line();
+        line = line->next;
+        if (m_gradient[(pos-w)-1]>m_gradient[pos-1]
+            && m_gradient[pos-1]>m_gradient[(pos+w)-1]){
+            y--;
+            x--;
+        } else if (m_gradient[(pos+w)-1]>m_gradient[pos-1]
+                   && m_gradient[pos-1]>m_gradient[(pos-w)-1]) {
+            y++;
+            x--;
+        } else {
+            x--;
         }
     }
-    int curEdgeMax = 512;
-    void** edges = (void**) malloc(curEdgeMax*sizeof(int));
-    int edgeNum = 0;
+    up = y < ly;
+    pos = (y*w) + x;
+    if (m_gradient[pos]==0) return 0;
+    else return pos;
+}
 
-    //hysteresis
-    for (int y = 1; y < h - 1; y++) {
-        int yOffs = y * w;
-        for (int x = 1; x < w - 1; x++) {
-            if (visited[yOffs+x]) continue; //skip pixel if already done
-            if (higher[yOffs+x] > 0) {
-                if (edgeNum == curEdgeMax) {
-                    curEdgeMax*=2;
-                    edges = (void**)realloc(edges,(size_t)(curEdgeMax*sizeof(int)));
-                }
-                edges[edgeNum++] = traverseLine(visited,lower,y,x);
-            }
+int EdgeFind::goRight(int x, int y, bool& up, Line* line) {
+    int ly = y;
+    int pos = y*w + x;
+    if (m_visited[pos]) return 0;
+    while(m_gradient[pos]>0&&!m_simpDirs[pos]&&!m_visited[pos]) {
+        ly = y;
+        pos = (y*w) + x;
+        m_visited[pos] = true;
+        line->p = pos;
+        line->next = new Line();
+        line = line->next;
+        if (m_gradient[(pos-w)+1]>m_gradient[pos+1]
+            && m_gradient[pos+1]>m_gradient[(pos+w)+1]){
+            y--;
+            x++;
+        } else if (m_gradient[(pos+w)+1]>m_gradient[pos+1]
+                   && m_gradient[pos+1]>m_gradient[(pos-w)+1]) {
+            y++;
+            x++;
+        } else {
+            x++;
         }
     }
-    free(lower);
-    free(higher);
-    free(visited);
-    edges = (void**)realloc(edges, (size_t)(edgeNum+1)*sizeof(int));
-    edges[edgeNum] = 0;//null terminate
-    m_edges = edges;
+    up = y < ly;
+    pos = (y*w) + x;
+    if (m_gradient[pos]==0) return 0;
+    else return pos;
+}
+
+int EdgeFind::goUp(int x, int y, bool& left, Line* line) {
+    int lx = x;
+    int pos = (y*w)+x;
+    if (m_visited[pos]) return 0;
+    while(m_gradient[pos]>0&&m_simpDirs[pos]&&!m_visited[pos]){
+        lx = x;
+        pos = (y*w) + x;
+        m_visited[pos] = true;
+        line->p = pos;
+        line->next = new Line();
+        line = line->next;
+        if (m_gradient[(pos-w)-1]>m_gradient[(pos-w)]
+            && m_gradient[(pos-w)]>m_gradient[(pos-w)+1]){
+            y--;
+            x--;
+        } else if (m_gradient[(pos-w)+1]>m_gradient[(pos-w)]
+                   && m_gradient[(pos-w)]>m_gradient[(pos-w)-1]){
+            y--;
+            x++;
+        } else {
+            y--;
+        }
+    }
+    left = x < lx;
+    pos = (y*w) + x;
+    if (m_gradient[pos]==0) return 0;
+    else return pos;
+}
+
+int EdgeFind::goDown(int x, int y, bool& left, Line* line) {
+    int lx = x;
+    int pos = (y*w)+x;
+    if (m_visited[pos]) return 0;
+    while(m_gradient[pos]>0&&m_simpDirs[pos]&&!m_visited[pos]){
+        lx = x;
+        pos = (y*w) + x;
+        m_visited[pos] = true;
+        line->p = pos;
+        line->next = new Line();
+        line = line->next;
+        if (m_gradient[(pos+w)-1]>m_gradient[(pos+w)]
+            && m_gradient[(pos+w)]>m_gradient[(pos+w)+1]){
+            y++;
+            x--;
+        } else if (m_gradient[(pos+w)+1]>m_gradient[(pos+w)]
+                   && m_gradient[(pos+w)]>m_gradient[(pos+w)-1]){
+            y++;
+            x++;
+        } else {
+            y++;
+        }
+    }
+    left = x < lx;
+    pos = (y*w) + x;
+    if (m_gradient[pos]==0) return 0;
+    else return pos;
 }
 
 int EdgeFind::computeXDerivative(int a, int b, int c, int d) {
@@ -116,49 +312,6 @@ int EdgeFind::computeXDerivative(int a, int b, int c, int d) {
 
 int EdgeFind::computeYDerivative(int a, int b, int c, int d) {
     return ((c - a) + (d - b))/2;
-}
-
-int* EdgeFind::calcThresholds(int dL, int dH) {
-    int* t = (int*)malloc(2*sizeof(int));
-//    t[0] = dL;
-//    t[1] = dH;
-//    return t;
-    int tot = 0;
-    int cnt = 0;
-    for (int i = 0; i < (w*h); i++) {
-        tot += m_gradient[i];
-        if (m_gradient[i] > 0) cnt++;
-    }
-    if (cnt == 0) {
-        t[0] = dL;
-        t[1] = dH;
-        return t;
-    }
-    int avg = tot / cnt;
-    int totL = 0;
-    int lCnt = 0;
-    int totH = 0;
-    int hCnt = 0;
-    for (int i = 0; i < w*h; i++) {
-        if (m_gradient[i] < avg) {
-            totL += m_gradient[i];
-            if (m_gradient[i] > 0) lCnt++;
-        } else {
-            totH += m_gradient[i];
-            hCnt++;
-        }
-    }
-    if (lCnt == 0) {
-        t[0] = dL;
-    } else {
-        t[0] = (totL/lCnt);
-    }
-    if (hCnt == 0) {
-        t[1] = dH;
-    } else{
-        t[1] = (totH/hCnt);
-    }
-    return t;
 }
 
 void EdgeFind::cullShortEdges(int thresh) {
@@ -196,152 +349,12 @@ void** EdgeFind::cullShortEdges(void** edges, int thresh) {
     return longEdges;
 }
 
-//returns a line, modifies the visited array
-void* EdgeFind::traverseLine(bool* visited, int* lower, int y, int x) {
-    int imgLen = w * h;
-    Line* root = new Line;
-    root->p = (y * w) + x;
-    Line* cur = root;
-
-    bool chk;
-    int cy,cx,cn;
-    cy=y;
-    cx=x;
-    do {
-        chk = false;
-        visited[(cy*w)+cx]=true;
-        cn = ((cy-1)*w)+(cx-1);
-        if (walked(visited,lower,imgLen,cn,cy,cx,-1,-1)) {
-            appendToLine(cur,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,-1,0)) {
-            appendToLine(cur,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,-1,1)) {
-            appendToLine(cur,cn);
-            chk = true;
-            continue;
-        }
-        cn = (cy*w)+(cx-1);
-        if (walked(visited,lower,imgLen,cn,cy,cx,0,-1)) {
-            appendToLine(cur,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,0,0)) {
-            appendToLine(cur,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,0,1)) {
-            appendToLine(cur,cn);
-            chk = true;
-            continue;
-        }
-        cn = ((cy+1)*w)+(cx-1);
-        if (walked(visited,lower,imgLen,cn,cy,cx,1,-1)) {
-            appendToLine(cur,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,1,0)) {
-            appendToLine(cur,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,1,1)) {
-            appendToLine(cur,cn);
-            chk = true;
-        }
-    } while(chk);
-    cur->next = 0;
-    cy=y;
-    cx=x;
-    do {
-        chk = false;
-        visited[(cy*w)+cx]=true;
-        cn = ((cy-1)*w)+(cx-1);
-        if (walked(visited,lower,imgLen,cn,cy,cx,-1,-1)) {
-            prependToLine(root,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,-1,0)) {
-            prependToLine(root,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,-1,1)) {
-            prependToLine(root,cn);
-            chk = true;
-            continue;
-        }
-        cn = (cy*w)+(cx-1);
-        if (walked(visited,lower,imgLen,cn,cy,cx,0,-1)) {
-            prependToLine(root,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,0,0)) {
-            prependToLine(root,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,0,1)) {
-            prependToLine(root,cn);
-            chk = true;
-            continue;
-        }
-        cn = ((cy+1)*w)+(cx-1);
-        if (walked(visited,lower,imgLen,cn,cy,cx,1,-1)) {
-            prependToLine(root,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,1,0)) {
-            prependToLine(root,cn);
-            chk = true;
-            continue;
-        }
-        cn++;
-        if (walked(visited,lower,imgLen,cn,cy,cx,1,1)) {
-            prependToLine(root,cn);
-            chk = true;
-        }
-    } while(chk);
-    return (void*) root;
-}
-
-bool EdgeFind::walked(bool* visited, int* lower, int imgLen, int cn, int& cy, int& cx, int yc, int xc) {
-    if (cn < imgLen && cn >= 0 && !visited[cn]){
-        if (lower[cn] > 0) {
-            cy+=yc;
-            cx+=xc;
-            return true;
-        }
-    }
-    return false;
-}
-
-void EdgeFind::appendToLine(Line*& cur, int val) {
+void EdgeFind::insertToLine(Line*& cur, int val) {
+    Line* nxt = cur->next;
     cur->next = new Line;
     cur = cur->next;
     cur->p = val;
+    cur->next = nxt;
 }
 
 void EdgeFind::prependToLine(Line*& root, int val) {
@@ -375,6 +388,10 @@ int* EdgeFind::getImageGradients() {
 
 int* EdgeFind::getImageDirections() {
     return m_direction;
+}
+
+int* EdgeFind::getAnchors() {
+    return m_anchors;
 }
 
 void** EdgeFind::getImageEdges() {

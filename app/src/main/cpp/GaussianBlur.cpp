@@ -157,6 +157,14 @@ void GaussianBlur::blur13(int* img, const int* gaus) {
         }
     }
 
+    //0 edges
+    for (int y = 0; y < 6; y++) {
+        for (int x = 0; x < m_w; x++) {
+            img[y*m_w+x] = 0;
+            img[(m_w*m_h)-(y*m_w+x)-1]=0;
+        }
+    }
+
     //blur vertical
     for (int y = 6; y < (m_h-6); y++) {
         int yOffs = y * m_w;
@@ -175,6 +183,10 @@ void GaussianBlur::blur13(int* img, const int* gaus) {
                     (imgHor[(yOffs + (4*m_w))+x]*gaus[2])+
                     (imgHor[(yOffs + (5*m_w))+x]*gaus[1])+
                     (imgHor[(yOffs + (6*m_w))+x]*gaus[0]))/gaus[7];
+        }
+        for (int x = 0; x < 6; x++) {
+            img[yOffs+x] = 0;
+            img[(yOffs+m_w)-1+x]=0;
         }
     }
     free(imgHor);
