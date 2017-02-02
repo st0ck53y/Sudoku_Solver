@@ -34,6 +34,7 @@ public:
     int* getImageGradients();
     int* getImageDirections();
     int* getAnchors();
+    void setAnchors(int* anchors); //TODO used for debugging anchor join only
     void** getImageEdges();
 private:
     int computeXDerivative(int a, int b, int c, int d);

@@ -29,4 +29,5 @@ public class NativeHelper implements Serializable {
 
     public native static void nativeCanny(byte[] imgData, int width, int height, int[] preDirs, int lower, int higher, IntBuffer imgOut);
 
+    public native static void joinAnchors(byte[] imgData, int w, int h, int[] preDirs, int[] anchors, IntBuffer img);
 }

@@ -101,3 +101,52 @@ void normalize(int* imgIn, int len, int* imgOut) {
     }
     free(cnt);
 }
+
+
+
+/** testing JNI functions, not used in actual app, only for jUnit **/
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_st0ck53y_testsudokuapplication_helper_NativeHelper_joinAnchors(
+        JNIEnv *env,
+        jclass obj,
+        jbyteArray imgData, jint width, jint height, jintArray preDirs,
+        jintArray anchors, jobject out) {
+
+    int* output_buffer = (int*) env->GetDirectBufferAddress(out);
+    jboolean frame_copy;
+    jbyte* image_buffer = env->GetByteArrayElements(imgData, &frame_copy);
+    jboolean dirs_copy;
+    int* dirs = env->GetIntArrayElements(preDirs, &dirs_copy);
+    jboolean anc_copy;
+    int* ancs = env->GetIntArrayElements(anchors,&anc_copy);
+    int w = (int) width;
+    int h = (int) height;
+    int buffSize = w*h;
+
+    int* image = (int*) malloc((buffSize)*sizeof(int));
+    int* temp_buff = (int*) calloc((size_t)(buffSize),sizeof(int));
+    yFromYUV(image_buffer,buffSize,image);
+    env->ReleaseByteArrayElements(imgData, image_buffer, JNI_ABORT);
+    free(image_buffer);
+    EdgeFind* ef = new EdgeFind(width, height);
+    ef->computeGradientAngles(image,dirs);
+    env->ReleaseIntArrayElements(preDirs,dirs,JNI_ABORT);
+    free(dirs);
+
+    ef->simplifyDirections();
+    ef->normalizeGradients();
+    ef->thresholdGradients();
+    ef->setAnchors(ancs);
+    ef->joinAnchors();
+
+    ef->paintEdges(temp_buff);
+    delete(ef);
+    free(image);
+
+    for (int i = 0; i < buffSize; i++) {
+        output_buffer[i] = (0xff000000 | ((temp_buff[i] & 0xff) << 16) | ((temp_buff[i] & 0xff) << 8) | (temp_buff[i] & 0xff));
+    }
+
+    free(temp_buff);
+}

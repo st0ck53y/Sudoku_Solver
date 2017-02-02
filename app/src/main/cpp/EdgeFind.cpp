@@ -394,6 +394,10 @@ int* EdgeFind::getAnchors() {
     return m_anchors;
 }
 
+void EdgeFind::setAnchors(int* anchors) {
+    m_anchors = anchors;
+}
+
 void** EdgeFind::getImageEdges() {
     return m_edges;
 }
